@@ -180,15 +180,28 @@ SSplotData <- function(replist,
                   yrs <- floor(allyrs[unique.index])
                   size.sorted <- size[unique.index][order(yrs)]
                   yrs.sorted <- yrs[order(yrs)]
+
+                  ## repeat size calculation for types ending in "dbase"
+                  ## as they may have multiple rows per year
+                  if(length(grep("dbase",typename))>0){
+                    size.sorted <- rep(0, length(yrs.sorted))
+                    for(iyr in 1:length(yrs.sorted)){
+                      yr <- yrs.sorted[iyr]
+                      size.sorted[iyr] <- sum(dat$N[dat$Yr==yr & dat$Fleet==ifleet],
+                                              na.rm=TRUE)
+                    }
+                  }
+                  # add new rows to typetable
                   typetable <- rbind(typetable,
                                      data.frame(yr=yrs.sorted,fleet=ifleet,
                                                 itype=ntypes,typename=typename,
                                                 size=size.sorted,
                                                 stringsAsFactors=FALSE))
-              }
-          }
-      }
-  }
+              } # end section expanding table
+          } # end loop over fleets
+      } # end check for presence of this data type
+  } # end loop over data types
+  
   # typetable is full data frame of all fleets and data types
   # typetable2 has been subset according to requested choices
 
