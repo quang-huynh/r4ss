@@ -28,7 +28,6 @@
 #' @references Walters, Hilborn, and Christensen, 2008, Surplus production
 #' dynamics in declining and recovering fish populations.  Can. J. Fish. Aquat.
 #' Sci. 65: 2536-2551
-#' @keywords hplot
 SSplotYield <-
   function(replist,
            subplots=1:2,
@@ -42,10 +41,11 @@ SSplotYield <-
            plotdir="default",
            verbose=TRUE)
 {
-  pngfun <- function(file,caption=NA){
-    png(filename=file,width=pwidth,height=pheight,
-        units=punits,res=res,pointsize=ptsize)
-    plotinfo <- rbind(plotinfo,data.frame(file=file,caption=caption))
+  # subfunction to write png files
+  pngfun <- function(file, caption=NA){
+    png(filename=file.path(plotdir, file),
+        width=pwidth, height=pheight, units=punits, res=res, pointsize=ptsize)
+    plotinfo <- rbind(plotinfo, data.frame(file=file, caption=caption))
     return(plotinfo)
   }
   plotinfo <- NULL
@@ -83,7 +83,7 @@ SSplotYield <-
         # make plot
         if(plot){yieldfunc()}
         if(print){
-          file <- paste(plotdir,"yield1_yield_curve.png",sep="")
+          file <- "yield1_yield_curve.png"
           caption <- "Yield curve"
           plotinfo <- pngfun(file=file, caption=caption)
           yieldfunc()
@@ -96,55 +96,54 @@ SSplotYield <-
     }
   }
 
-  ts <- timeseries
-  ts$Yr <- ts$Yr + (ts$Seas-1)/nseasons
+  # timeseries excluding equilibrium conditions or forecasts
+  ts <- timeseries[!timeseries$Era %in% c("VIRG","FORE"),]
 
-  # get total biomass and total catch (across areas)
-  arearows <- ts$Area==1
-  Bio_all <- ts$Bio_all[arearows]
-  if(SS_versionshort=="SS-V3.11") stringB <- "enc(B)" else stringB <- "sel(B)"
+  # get total dead catch
+  stringB <- "dead(B)"
+  catchmat <- as.matrix(ts[, substr(names(ts),1,nchar(stringB))==stringB])
+  # aggregate catch across fleets
+  catch <- rowSums(catchmat)
 
-  totcatchmat <- as.matrix(ts[arearows, substr(names(ts),1,nchar(stringB))==stringB])
+  # aggregate catch and biomass across seasons and areas
+  catch_agg <- aggregate(x=catch, by=list(ts$Yr), FUN=sum)$x
+  Bio_agg <- aggregate(x=ts$Bio_all, by=list(ts$Yr), FUN=sum)$x
 
-  if(nareas > 1){
-    for(iarea in 2:nareas){
-      arearows <- ts$Area==iarea
-      Bio_all <- ts$Bio_all[arearows]
-      totcatchmat <- totcatchmat +
-        as.matrix(ts[arearows,
-                     substr(names(ts),1,nchar(stringB))==stringB])
-    }
-  }
+  # number of years to consider
+  Nyrs <- length(Bio_agg)
 
-  ls <- nrow(totcatchmat)
+  # function to calculate and plot surplus production
   sprodfunc <- function(){
-    totcatch <- 0
-    totcatch[3:ls] <- rowSums(totcatchmat)[3:ls]
-    sprod <- NA
-    sprod[3:(ls-1)] <- Bio_all[4:ls] - Bio_all[3:(ls-1)] + totcatch[3:(ls-1)]
+    sprod <- rep(NA, Nyrs)
+    # calculate surplus production as difference in biomass adjusted for catch
+    sprod[1:(Nyrs-1)] <- Bio_agg[2:Nyrs] - Bio_agg[1:(Nyrs-1)] + catch_agg[1:(Nyrs-1)]
     sprodgood <- !is.na(sprod)
-    Bio_all_good <- Bio_all[sprodgood]
+    Bio_agg_good <- Bio_agg[sprodgood]
     sprod_good <- sprod[sprodgood]
-    xlim <- c(0,max(Bio_all_good,na.rm=TRUE))
-    ylim <- c(min(0,sprod_good,na.rm=TRUE),max(sprod_good,na.rm=TRUE))
-    plot(Bio_all_good,sprod_good,ylim=ylim,xlim=xlim,xlab=labels[3],ylab=labels[4],type="l",col="black")
+    xlim <- c(0, max(Bio_agg_good, na.rm=TRUE))
+    ylim <- c(min(0, sprod_good, na.rm=TRUE), max(sprod_good, na.rm=TRUE))
+    plot(Bio_agg_good, sprod_good, ylim=ylim, xlim=xlim,
+         xlab=labels[3], ylab=labels[4], type="l", col="black")
 
     # make arrows
     old_warn <- options()$warn      # previous setting
     options(warn=-1)                # turn off "zero-length arrow" warning
     s <- seq(length(sprod_good)-1)
-    arrows(Bio_all_good[s],sprod_good[s],Bio_all_good[s+1],sprod_good[s+1],length=0.06,angle=20,col="black",lwd=1.2)
+    arrows(Bio_agg_good[s], sprod_good[s], Bio_agg_good[s+1], sprod_good[s+1],
+           length=0.06, angle=20, col="black", lwd=1.2)
     options(warn=old_warn)  #returning to old value
 
+    # add lines at 0 and 0
     abline(h=0,col="grey")
     abline(v=0,col="grey")
-    points(Bio_all_good[1],sprod_good[1],col="blue",pch=19)
+    # add blue point at start
+    points(Bio_agg_good[1],sprod_good[1],col="blue",pch=19)
   } # end sprodfunc
 
   if(2 %in% subplots){
     if(plot){sprodfunc()}
     if(print){
-      file <- paste(plotdir,"yield2_Hilborn_surplus_production.png",sep="")
+      file <- "yield2_Hilborn_surplus_production.png"
       caption <-
         paste("Surplus production plot. For interpretation, see<br>",
               "<blockquote>Walters, Hilborn, and  Christensen, 2008,",
