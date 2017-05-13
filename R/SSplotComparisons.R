@@ -70,7 +70,9 @@
 #' @param legend Add a legend?
 #' @param legendlabels Optional vector of labels to include in legend. Default
 #' is 'model1','model2',etc.
-#' @param legendloc Location of legend. See ?legend for more info.
+#' @param legendloc Location of legend. Either a string like "topleft" or a vector
+#' of two numeric values representing the fraction of the maximum in the x and y
+#' dimensions, respectively. See ?legend for more info on the string options.
 #' @param legendorder Optional vector of model numbers that can be used to have
 #' the legend display the model names in an order that is different than that
 #' which is represented in the summary input object.
@@ -124,7 +126,7 @@
 #' @param show_equilibrium Whether to show the equilibrium values for
 #' SSB. For some model comparisons, these might not be comparable and thus
 #' useful to turn off. Defaults to TRUE.
-#' @author Ian Taylor
+#' @author Ian G. Taylor, John R. Wallace
 #' @export
 #' @seealso \code{\link{SS_plots}}, \code{\link{SSsummarize}},
 #' \code{\link{SS_output}}, \code{\link{SSgetoutput}}
@@ -225,6 +227,12 @@ SSplotComparisons <-
     if(cumulative){
       legendloc="topleft"
     }
+    if(is.numeric(legendloc)) {
+      Usr <- par()$usr
+      legendloc <- list(x = Usr[1] + legendloc[1] * (Usr[2] - Usr[1]),
+                        y = Usr[3] + legendloc[2] * (Usr[4] - Usr[3]))
+    }
+    
     # if type input is "l" then turn off points on top of lines in legend
     legend.pch <- pch
     if(type=="l"){
@@ -558,9 +566,9 @@ SSplotComparisons <-
       recruitsLower[recruits$Yr > endyr, imodel] <- NA
       recruitsUpper[recruits$Yr > endyr, imodel] <- NA
       if(!is.null(recdevs)){
-        recdevs[recdevs$Yr > endyr, imodel] <- NA
-        recdevsLower[recdevs$Yr > endyr, imodel] <- NA
-        recdevsUpper[recdevs$Yr > endyr, imodel] <- NA
+        recdevs[!is.na(recdevs$Yr) && recdevs$Yr > endyr, imodel] <- NA
+        recdevsLower[!is.na(recdevs$Yr) && recdevs$Yr > endyr, imodel] <- NA
+        recdevsUpper[!is.na(recdevs$Yr) && recdevs$Yr > endyr, imodel] <- NA
       }
     }
   }
@@ -678,10 +686,15 @@ SSplotComparisons <-
     # add axes
     if(!add){
       abline(h=0,col="grey")
-      axis(1)
-      if(tickEndYr){
-        axis(1, at=max(endyrvec))
+      if(tickEndYr){ # include ending year in axis labels
+        ticks <- graphics::axTicks(1) # default tick positions if axis(1) were run
+        # make axis (excluding anything after the max ending year)
+        axis(1, at=c(ticks[ticks<max(endyrvec)], max(endyrvec)))
+      }else{
+        # nothing special (may include labels beyond the ending year)
+        axis(1)
       }
+      
       # add shaded area over forecast years if at more than 1 forecast year is shown
       if(!is.null(endyrvec) & max(endyrvec) > 1+max(endyrs) & shadeForecast){
         rect(xleft=max(endyrs)+1, ybottom=par()$usr[3],
@@ -752,9 +765,13 @@ SSplotComparisons <-
     if(!add){
       abline(h=0,col="grey")
       abline(h=1,col="grey",lty=2)
-      axis(1)
-      if(tickEndYr){
-        axis(1, at=max(endyrvec))
+      if(tickEndYr){ # include ending year in axis labels
+        ticks <- graphics::axTicks(1) # default tick positions if axis(1) were run
+        # make axis (excluding anything after the max ending year)
+        axis(1, at=c(ticks[ticks<max(endyrvec)], max(endyrvec)))
+      }else{
+        # nothing special (may include labels beyond the ending year)
+        axis(1)
       }
       # add shaded area over forecast years if at more than 1 forecast year is shown
       if(!is.null(endyrvec) & max(endyrvec) > 1+max(endyrs) & shadeForecast){
@@ -794,8 +811,9 @@ SSplotComparisons <-
       # plot that has labels on both left and right
       newmar[4] <- newmar[2]
       par(mar=newmar)
-      plot(0,type="n",xlim=xlim,ylim=ylim,xlab=labels[1],
-           ylab="" ,xaxs=xaxs,yaxs=yaxs,las=1)
+      plot(0, type="n", xlim=xlim, ylim=ylim, xlab=labels[1],
+           ylab="", xaxs=xaxs, yaxs=yaxs, las=1, axes=FALSE)
+      axis(2)
     }
     if(show_uncertainty){
       addpoly(SPRratio$Yr, lower=SPRratioLower, upper=SPRratioUpper)
@@ -842,8 +860,13 @@ SSplotComparisons <-
       mtext(side=2,line=3,FvalueLabel)
     }
     if(!add){
-      if(tickEndYr){
-        axis(1, at=max(endyrvec))
+      if(tickEndYr){ # include ending year in axis labels
+        ticks <- graphics::axTicks(1) # default tick positions if axis(1) were run
+        # make axis (excluding anything after the max ending year)
+        axis(1, at=c(ticks[ticks<max(endyrvec)], max(endyrvec)))
+      }else{
+        # nothing special (may include labels beyond the ending year)
+        axis(1)
       }
       # add shaded area over forecast years if at more than 1 forecast year is shown
       if(!is.null(endyrvec) & max(endyrvec) > 1+max(endyrs) & shadeForecast){
@@ -884,8 +907,17 @@ SSplotComparisons <-
       newmar <- oldmar <- par()$mar
       newmar[4] <- newmar[2]
       par(mar=newmar)
-      plot(0,type="n",xlim=xlim,ylim=ylim,xlab=labels[1],
-           ylab="" ,xaxs=xaxs,yaxs=yaxs,las=1)
+      plot(0, type="n", xlim=xlim, ylim=ylim, xlab=labels[1], 
+           ylab="", xaxs=xaxs, yaxs=yaxs, las=1, axes=FALSE)
+      if(tickEndYr){ # include ending year in axis labels
+        ticks <- graphics::axTicks(1) # default tick positions if axis(1) were run
+        # make axis (excluding anything after the max ending year)
+        axis(1, at=c(ticks[ticks<max(endyrvec)], max(endyrvec)))
+      }else{
+        # nothing special (may include labels beyond the ending year)
+        axis(1)
+      }
+      axis(2)
     }
     if(show_uncertainty){
       addpoly(Fvalue$Yr, lower=FvalueLower, upper=FvalueUpper)
@@ -1002,9 +1034,13 @@ SSplotComparisons <-
       legendfun(legendlabels)
     }
     if(!add){
-      axis(1)
-      if(tickEndYr){
-        axis(1, at=max(endyrvec))
+      if(tickEndYr){ # include ending year in axis labels
+        ticks <- graphics::axTicks(1) # default tick positions if axis(1) were run
+        # make axis (excluding anything after the max ending year)
+        axis(1, at=c(ticks[ticks<max(endyrvec)], max(endyrvec)))
+      }else{
+        # nothing special (may include labels beyond the ending year)
+        axis(1)
       }
       # add shaded area over forecast years if at more than 1 forecast year is shown
       if(!is.null(endyrvec) & max(endyrvec) > 1+max(endyrs) & shadeForecast){
@@ -1019,13 +1055,18 @@ SSplotComparisons <-
   }
 
   plotRecDevs <- function(show_uncertainty=TRUE){ # plot recruit deviations
+    # test for bad values
+    if(any(is.na(recdevs$Yr))){
+      warning("Recdevs associated with initial age structure may not be shown")
+    }
+
     # only show uncertainty if values are present for at least one model
     if(!any(uncertainty)){
       show_uncertainty <- FALSE
     }
     # empty plot
     if(xlim[1]=="default"){
-      xlim <- range(recdevs$Yr)
+      xlim <- range(recdevs$Yr, na.rm=TRUE)
       if(!is.null(endyrvec) & all(endyrvec < max(xlim))) xlim[2] <- max(endyrvec)
     }
     ylim <- ylimAdj*range(recdevs[,models],na.rm=TRUE)
@@ -1038,10 +1079,13 @@ SSplotComparisons <-
     }
     ylim <- range(-ylim,ylim) # make symmetric
 
-    if(!add) plot(0,xlim=xlim,ylim=ylim,
-         type="n",xlab=labels[1],ylab=labels[5],xaxs=xaxs,yaxs=yaxs,las=1)
-    abline(h=0,col="grey")
-
+    if(!add){
+      plot(0, xlim=xlim, ylim=ylim, axes=FALSE,
+           type="n", xlab=labels[1], ylab=labels[5], xaxs=xaxs, yaxs=yaxs, las=1)
+      axis(2)
+      abline(h=0, col="grey")
+    }
+    
     if(show_uncertainty){
       for(iline in 1:nlines){
         imodel <- models[iline]
@@ -1064,8 +1108,13 @@ SSplotComparisons <-
       points(xvec,yvec,pch=pch[iline],lwd=lwd[iline],col=col[iline])
     }
     if(!add){
-      if(tickEndYr){
-        axis(1, at=max(endyrvec))
+      if(tickEndYr){ # include ending year in axis labels
+        ticks <- graphics::axTicks(1) # default tick positions if axis(1) were run
+        # make axis (excluding anything after the max ending year)
+        axis(1, at=c(ticks[ticks<max(endyrvec)], max(endyrvec)))
+      }else{
+        # nothing special (may include labels beyond the ending year)
+        axis(1)
       }
       # add shaded area over forecast years if at more than 1 forecast year is shown
       if(!is.null(endyrvec) & max(endyrvec) > 1+max(endyrs) & shadeForecast){
@@ -1148,7 +1197,7 @@ SSplotComparisons <-
   #    however, that represents a relatively rare case.
   #    in general, it should be possible to loop over all fleets with indices
   #    and compare them across all models
-  #    instead of checking for alignment of indices$FleetNum within the
+  #    instead of checking for alignment of indices$Fleet within the
   #    plotIndices() function itself, this function can occur within a loop over
   #    fleet numbers. An initial check for matching sets of fleets could be used
   #    and only revert to requiring the indexfleets input if there is a mismatch
@@ -1163,10 +1212,10 @@ SSplotComparisons <-
       imodel <- models[iline]
       subset1 <- indices$imodel==imodel & !is.na(indices$Like)
       subset2 <- indices$imodel==imodel
-      if(length(unique(indices$FleetNum[subset2])) > 1){
+      if(length(unique(indices$Fleet[subset2])) > 1){
         if(!is.null(indexfleets[imodel])){
           ifleet <- indexfleets[imodel]
-          indices2 <- rbind(indices2,indices[subset2 & indices$FleetNum==ifleet,])
+          indices2 <- rbind(indices2,indices[subset2 & indices$Fleet==ifleet,])
         }else{
           cat("some models have multiple indices, 'indexfleets' required\n",
               "to compare fits to indices.\n")
@@ -1286,7 +1335,7 @@ SSplotComparisons <-
     }
 
     if(!add){
-      axis(1,at=yr)
+      axis(1, at=yr)
       if(tickEndYr){
         axis(1, at=max(endyrvec))
       }
@@ -1546,7 +1595,7 @@ SSplotComparisons <-
       if(!add) {
         abline(h=0,col="grey")
         xticks <- pretty(xlim)
-        axis(1,at=xticks,labels=format(xticks/xunits))
+        axis(1, at=xticks, labels=format(xticks/xunits))
         theLine <- 1
         if(cumulative) {
             axis(2,at=symbolsQuants,labels=format(symbolsQuants),las=1,cex.axis=0.9)
@@ -1867,4 +1916,5 @@ SSplotComparisons <-
   ## }
 
   if(pdf) dev.off()
+  return(invisible("finished comparison plots"))
 }

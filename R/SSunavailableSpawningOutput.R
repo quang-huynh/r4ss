@@ -18,13 +18,12 @@
 #' @author Megan Stachura, Andrew Cooper, Andi Stephens, Neil Klaer, Ian G. Taylor
 #' @export
 
-SSunavailableSpawingOutput <-
-  function(replist,
+SSunavailableSpawningOutput <-
+  function(replist, 
            plot=TRUE,print=FALSE,
            plotdir="default",
            pwidth=6.5,pheight=5.0,punits="in",res=300,ptsize=10,cex.main=1)
 {
-
   # subfunction to write png files
   pngfun <- function(file, caption=NA){
     png(filename=file.path(plotdir, file),
@@ -71,17 +70,22 @@ SSunavailableSpawingOutput <-
     ##########################################################################
     # Step 2: Female numbers at age matrix by year
     num.at.age <- replist$natage
-    names(num.at.age)[10] <- "BegMid"
+    
     # old line which used "subset"
     ## num.at.age.female <- subset(num.at.age, Gender==1 & Era=="TIME" & BegMid=="B" & Area==area & Yr %in% years.with.catch)
     # replacement line without "subset"
     num.at.age.female <- num.at.age[num.at.age$Gender==1 & num.at.age$Era=="TIME" &
-                                      num.at.age$BegMid=="B" & num.at.age$Area==area &
+                                      num.at.age$"Beg/Mid"=="B" & num.at.age$Area==area &
                                         num.at.age$Yr %in% years.with.catch,]
     years <- num.at.age.female$Yr
+    seas <- num.at.age.female$Seas
     first.col <- which(names(num.at.age.female)=='0')
     num.at.age.female <- num.at.age.female[,first.col:ncol(num.at.age.female)]
-    row.names(num.at.age.female) <- years
+    if(max(seas)>1) {
+        row.names(num.at.age.female) <- paste(years,seas,sep="")
+    } else {
+        row.names(num.at.age.female) <- years
+    }
 
     ##########################################################################
     # step 3: create an average derived age-based selectivity across fleets
@@ -234,7 +238,7 @@ SSunavailableSpawingOutput <-
                                       total.spawning.output)
       plot(years, portion.unavailable, xlab='Year', ylab='',
            ylim=c(0, 1.1), type='l', lwd=2, las=1)
-      mtext('Proportion of Spawing Output Unavailable', 3, line=0.25)
+      mtext('Proportion of Spawning Output Unavailable', 3, line=0.25)
       lines(years, portion.unavailable.small, col='red', lwd=2)
       lines(years, portion.unavailable.large, col='green4', lwd=2)
       legend('topright', c('Unavailable Small', 'Unavailable Large',
@@ -243,6 +247,7 @@ SSunavailableSpawingOutput <-
 
       ### Plot cryptic spawning output by age by year as a bubble plot
       multiplier <- 2/max(cryptic.spawning.output.by.age, na.rm=TRUE)
+      # allow bubbles to extend beyond boundaries of plot region
       par(xpd=NA)
       plot(1,1, type='n', ylim=c(0,accuage+4),
            xlim=c(min(years.with.catch), max(years.with.catch)),
@@ -312,6 +317,8 @@ SSunavailableSpawingOutput <-
 
       # Add a line to show where the cut off between small and large unavailable
       lines(years.with.catch, max.selectivity.cols-1.5)
+      # restore clipping to plot region
+      par(xpd=FALSE)
 
       ##### Plot mean selecitivities by length by year
       cols <- colorRampPalette(c('blue', 'orange'),
@@ -351,7 +358,7 @@ SSunavailableSpawingOutput <-
   }
 
   # Return the plot info
-  if(!is.null(plotinfo)) plotinfo$category <- "UnavailableSpawningOutput"
+  if(!is.null(plotinfo)) plotinfo$category <- "Sel"
   return(invisible(plotinfo))
 
 }
