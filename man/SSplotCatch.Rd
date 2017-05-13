@@ -39,7 +39,8 @@ only.  Other options include "o" for overplotting points on lines.}
 
 \item{fleetcols}{Vector of colors by fleet}
 
-\item{fleetnames}{Optional replacement for fleenames used in data file}
+\item{fleetnames}{Optional replacement for fleenames used in data file,
+should only include fleets with catch that appear in catch plots.}
 
 \item{lwd}{Line width}
 
@@ -100,10 +101,9 @@ white space at the top of the figure)}
 Plot catch related quantities from Stock Synthesis output. Plots include
 harvest rate, continuous F, landings, and discard fraction.
 }
-\author{
-Ian Taylor, Ian Stewart
-}
 \seealso{
 \code{\link{SS_plots}}, \code{\link{SS_output}}
 }
-
+\author{
+Ian Taylor, Ian Stewart
+}

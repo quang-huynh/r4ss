@@ -118,8 +118,7 @@ Default="default".}
 \item{verbose}{Return updates of function progress to the R GUI?  Default=T.}
 
 \item{uncertainty}{Include values in plots showing estimates of uncertainty
-(requires positive definite hessian in model and \code{covar}=T in
-\code{SS_output})?  Default=T.}
+(requires positive definite hessian in model?  Default=TRUE.}
 
 \item{forecastplot}{Include forecast years in the plots? Obviously requires
 forecast options to have been used in the model.  Default=T.}
@@ -303,9 +302,6 @@ series, and fits to data.  Plots are sent to R GUI, single PDF file, or
 multiple PNG files. This is now just a wrapper which calls on separate
 functions to make all the plots.
 }
-\author{
-Ian Stewart, Ian Taylor
-}
 \references{
 Walters, Hilborn, and Christensen, 2008, Surplus production
 dynamics in declining and recovering fish populations. Can. J. Fish. Aquat.
@@ -321,4 +317,6 @@ Sci. 65: 2536-2551.
 \code{\link{SSplotTags}}, \code{\link{SSplotTimeseries}},
 \code{\link{SSplotYield}}
 }
-
+\author{
+Ian Stewart, Ian Taylor
+}

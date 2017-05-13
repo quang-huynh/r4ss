@@ -4,7 +4,8 @@
 \alias{SS_writedat}
 \title{write data file}
 \usage{
-SS_writedat(datlist, outfile, overwrite = FALSE, verbose = TRUE)
+SS_writedat(datlist, outfile, overwrite = FALSE, faster = FALSE,
+  verbose = TRUE)
 }
 \arguments{
 \item{datlist}{List object created by \code{\link{SS_readdat}}.}
@@ -13,14 +14,14 @@ SS_writedat(datlist, outfile, overwrite = FALSE, verbose = TRUE)
 
 \item{overwrite}{Should existing files be overwritten? Default=FALSE.}
 
+\item{faster}{Speed up writing by writing length and age comps without aligning
+the columns (by using write.table instead of print.data.frame)}
+
 \item{verbose}{Should there be verbose output while running the file?}
 }
 \description{
 write Stock Synthesis data file from list object in R which was probably
 created using \code{\link{SS_readdat}}
-}
-\author{
-Ian Taylor, Yukio Takeuchi
 }
 \seealso{
 \code{\link{SS_makedatlist}}, \code{\link{SS_readstarter}},
@@ -28,4 +29,6 @@ Ian Taylor, Yukio Takeuchi
 \code{\link{SS_writestarter}}, \code{\link{SS_writeforecast}},
 \code{\link{SS_writedat}}
 }
-
+\author{
+Ian G. Taylor, Yukio Takeuchi, Gwladys I. Lambert
+}

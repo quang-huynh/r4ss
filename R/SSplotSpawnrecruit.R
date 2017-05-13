@@ -73,17 +73,18 @@ SSplotSpawnrecruit <-
   
 
   if(plotdir=="default") plotdir <- replist$inputs$dir
-  if(minyr=="default") minyr <- min(recruit$year)
+  if(minyr=="default") minyr <- min(recruit$Yr)
 
   recruit <- recruit[recruit$era %in% c("Early","Main","Fixed","Late",
                                         ifelse(forecast,"Forecast",NA)) &
-                     recruit$year>=minyr,]
+                     recruit$Yr>=minyr,]
   
   timeseries <- replist$timeseries
-  recruit$spawn_bio <- bioscale*recruit$spawn_bio
+  recruit$spawn_bio <- bioscale*recruit$SpawnBio
   timeseries$SpawnBio <- bioscale*timeseries$SpawnBio
   
-  if(is.null(ylim)) ylim=c(0, max(recruit$pred_recr, recruit$exp_recr, recruit$adjusted))
+  if(is.null(ylim)) ylim=c(0, max(recruit$pred_recr,
+                        recruit$exp_recr, recruit$bias_adjusted))
   x <- recruit$spawn_bio
   if(is.null(xlim)) xlim=c(0, max(x))
 
@@ -91,6 +92,7 @@ SSplotSpawnrecruit <-
   # from expected recruitment without environmental link
   show_env <- any(recruit$with_env!=recruit$exp_recr)
   # store virgin and initial values
+  browser()
   B0 <- sum(timeseries$SpawnBio[timeseries$Era=="VIRG"], na.rm=TRUE)
   B1 <- sum(timeseries$SpawnBio[timeseries$Era=="INIT"], na.rm=TRUE)
   R0 <- sum(timeseries$Recruit_0[timeseries$Era=="VIRG"], na.rm=TRUE)
@@ -135,14 +137,14 @@ SSplotSpawnrecruit <-
     # add line for expected recruitment
     lines(x[order(x)],  recruit$exp_recr[order(x)],lwd=2, col=colvec[3])
     # add line for adjusted recruitment
-    lines(x,            recruit$adjusted,          lwd=1, col=colvec[2])
+    lines(x,            recruit$bias_adjusted,          lwd=1, col=colvec[2])
     # add points for individual estimates
     points(x,recruit$pred_recr,col=colvec[4])
     if(text){
       # add text, but only label values with larger devs (in abs value)
       show <- abs(recruit$dev) > textmindev
       show[1] <- show[length(show)] <- TRUE  # also include first & last years
-      text(x[show],recruit$pred_recr[show],labels=recruit$year[show], pos=2, cex=.7)
+      text(x[show],recruit$pred_recr[show],labels=recruit$Yr[show], pos=2, cex=.7)
     }
     # add point for virgin biomass/recruitment (if requested)
     if(virg){

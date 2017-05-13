@@ -17,7 +17,6 @@
 #'  to disable them. This information is not explicitly available in control file, too.
 #' @author Yukio Takeuchi
 #' @importFrom gdata write.fwf
-#' @importFrom stringr str_c
 #' @export
 #' @seealso \code{\link{SS_readctl}}, \code{\link{SS_readctl_3.24}},\code{\link{SS_readstarter}},
 # ' \code{\link{SS_readforecast}},
@@ -31,9 +30,6 @@ SS_writectl_3.24 <- function(ctllist,outfile,overwrite=FALSE,verbose=TRUE,
     N_areas=1,
     Do_AgeKey=FALSE
 ){
-#  require("gdata")
-#  require("magrittr")
-#  require("stringr")
   # function to write Stock Synthesis ctl files
   if(verbose) cat("running SS_writectl\n")
 
@@ -101,7 +97,8 @@ SS_writectl_3.24 <- function(ctllist,outfile,overwrite=FALSE,verbose=TRUE,
       writeLines(paste0("#_",header),con=zz)
     }
     value = ctllist[names(ctllist)==name][[1]]
-    value1<-sapply(value,function(x){stringr::str_c(paste(x),collapse=" ")},simplify=TRUE)
+    value1<-sapply(value, function(x){paste(paste(x),collapse=" ")},
+                   simplify=TRUE)
     writeLines(value1,con=zz)
   }
 
@@ -292,7 +289,7 @@ SS_writectl_3.24 <- function(ctllist,outfile,overwrite=FALSE,verbose=TRUE,
   }else if(ctllist$F_Method==2){
   #  stop("stop currently F_method:2 is not implemented")
     writeComment("overall start F value; overall phase; N detailed inputs to read")
-    wl.vec("F_setup")
+    wl.vector("F_setup")
     writeComment("fleet, yr, seas, Fvalue, se, phase")
     printdf("F_setup2")
   }else if(ctllist$F_Method==3){

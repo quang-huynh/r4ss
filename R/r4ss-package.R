@@ -7,7 +7,7 @@
 #' parameterizations, and various other tasks.
 #'
 #' \tabular{ll}{ Package: \tab r4ss\cr Type: \tab Package\cr Version: \tab
-#' 1.25.1\cr Date: \tab 2017-01-21\cr License: \tab GPL-3\cr LazyLoad: \tab
+#' 1.26.0\cr Date: \tab 2017-04-19\cr License: \tab GPL-3\cr LazyLoad: \tab
 #' yes\cr URL: \tab \url{https://github.com/r4ss/}\cr }
 #' Should be compatible with Stock Synthesis versions 3.21 through 3.30.
 #'
@@ -20,7 +20,8 @@
 #' Z. Teresa A'mar, Athol R. Whitten, Kelli F. Johnson, Robbie L. Emmet,
 #' Sean C. Anderson, Gwladys I. Lambert, Megan M. Stachura,
 #' Andrew B. Cooper, Andi Stephens, and Neil Klaer
-#'  Package maintainer: Ian Taylor <Ian.Taylor@@noaa.gov>
+#'
+#' Package maintainer: Ian Taylor <Ian.Taylor@@noaa.gov>
 #' @references r4ss on GitHub: \url{https://github.com/r4ss}
 #' \cr Download Stock Synthesis: \url{http://nft.nefsc.noaa.gov/}
 #' @import coda
@@ -41,7 +42,6 @@
 #' @importFrom stats acf aggregate density dnorm loess
 #'   median na.omit nlminb optim pnorm qchisq qlnorm
 #'   qnorm qt quantile rnorm sd var window
-#' @importFrom stringr str_c
 #' @importFrom utils browseURL flush.console head read.csv
 #'   read.table tail write.csv write.table
 #'

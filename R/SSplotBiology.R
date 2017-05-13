@@ -146,7 +146,7 @@ function(replist, plot=TRUE,print=FALSE,add=FALSE,subplots=1:17,seas=1,
   Growth_Parameters <- replist$Growth_Parameters
 
   # get any derived quantities related to growth curve uncertainty
-  Grow_std <- replist$derived_quants[grep("Grow_std_", replist$derived_quants$LABEL),]
+  Grow_std <- replist$derived_quants[grep("Grow_std_", replist$derived_quants$Label),]
   if(nrow(Grow_std)==0){
     Grow_std <- NULL
   }else{
@@ -157,7 +157,7 @@ function(replist, plot=TRUE,print=FALSE,add=FALSE,subplots=1:17,seas=1,
     Grow_std$sex <- NA
     Grow_std$age <- NA
     for(irow in 1:nrow(Grow_std)){
-      tmp <- strsplit(Grow_std$LABEL[irow], split="_")[[1]]
+      tmp <- strsplit(Grow_std$Label[irow], split="_")[[1]]
       Grow_std$pattern[irow] <- as.numeric(tmp[3])
       Grow_std$sex_char[irow] <- tmp[4]
       Grow_std$age[irow] <- as.numeric(tmp[6])
@@ -165,7 +165,7 @@ function(replist, plot=TRUE,print=FALSE,add=FALSE,subplots=1:17,seas=1,
     Grow_std$sex[Grow_std$sex_char=="Fem"] <- 1
     Grow_std$sex[Grow_std$sex_char=="Mal"] <- 2
     #### now it should look something like this:
-    ##                                   LABEL Value   StdDev pattern sex_char sex age
+    ##                                   Label Value   StdDev pattern sex_char sex age
     ## Grow_std_1_Fem_A_5   Grow_std_1_Fem_A_5     0 1.772300       1      Fem   1   5
     ## Grow_std_1_Fem_A_10 Grow_std_1_Fem_A_10     0 1.039320       1      Fem   1  10
   }
@@ -184,7 +184,7 @@ function(replist, plot=TRUE,print=FALSE,add=FALSE,subplots=1:17,seas=1,
   }
   if(!seas %in% 1:nseasons) stop("'seas' input should be within 1:nseasons")
   # trying to fix error when spawning not in season 1:
-  ## if(nrow(growdat[growdat$Gender==1 & growdat$Morph==mainmorphs[1],])==0){
+  ## if(nrow(growdat[growdat$Sex==1 & growdat$Morph==mainmorphs[1],])==0){
   ##   seas <- replist$spawnseas
   ##   growdat      <- replist$endgrowth[replist$endgrowth$Seas==seas,]
   ##   cat("Note: growth will be shown for spawning season =",seas,"\n")
@@ -219,9 +219,8 @@ function(replist, plot=TRUE,print=FALSE,add=FALSE,subplots=1:17,seas=1,
 
   # Beginning of season 1 (or specified season) mean length at age
   #   with 95% range of lengths (by sex if applicable)
-
   ## Ian T.: consider somehow generalizing to allow looping over growth pattern
-  growdatF <- growdat[growdat$Gender==1 & growdat$Morph==mainmorphs[1],]
+  growdatF <- growdat[growdat$Sex==1 & growdat$Morph==mainmorphs[1],]
   growdatF$Sd_Size <- growdatF$SD_Beg
   if(growthCVtype=="logSD=f(A)"){ # lognormal distribution of length at age
     growdatF$high <- qlnorm(0.975, meanlog=log(growdatF$Len_Beg), sdlog=growdatF$Sd_Size)
@@ -232,7 +231,7 @@ function(replist, plot=TRUE,print=FALSE,add=FALSE,subplots=1:17,seas=1,
   }
 
   if(nsexes > 1){ # do males if 2-sex model
-    growdatM <- growdat[growdat$Gender==2 & growdat$Morph==mainmorphs[2],]
+    growdatM <- growdat[growdat$Sex==2 & growdat$Morph==mainmorphs[2],]
     # IAN T. this should probably be generalized
     xm <- growdatM$Age_Beg
 
@@ -468,6 +467,8 @@ function(replist, plot=TRUE,print=FALSE,add=FALSE,subplots=1:17,seas=1,
     lines(x,growdatF$high,col=colvec[col_index1],lwd=1,lty='12')
     lines(x,growdatF$low,col=colvec[col_index1],lwd=1,lty='12')
     # add uncertainty intervals around growth curve
+    old_warn <- options()$warn   # previous settings for warnings
+    options(warn=-1)             # turn off "zero-length arrow" warning
     if(!is.null(Grow_std) & add_uncertainty){
       Grow_std.f <- Grow_std[Grow_std$sex==1,]
       if(!is.null(Grow_std.f)){
@@ -509,6 +510,9 @@ function(replist, plot=TRUE,print=FALSE,add=FALSE,subplots=1:17,seas=1,
         }
       }
     }
+    #returning to old warnings (after turning off in case of zero-length arrow)
+    options(warn=old_warn)  
+
     if(!add){
       grid()
       box()
@@ -1092,7 +1096,7 @@ function(replist, plot=TRUE,print=FALSE,add=FALSE,subplots=1:17,seas=1,
   if(14 %in% subplots){
     # general function to work for any parameter
     timeVaryingParmFunc <- function(parmlabel){
-      plot(MGparmAdj$Year, MGparmAdj[[parmlabel]],
+      plot(MGparmAdj$Yr, MGparmAdj[[parmlabel]],
            xlab=labels[12], ylab=parmlabel, type="l", lwd=3, col=colvec[2])
     }
     # check to make sure MGparmAdj looks as expected
@@ -1103,7 +1107,7 @@ function(replist, plot=TRUE,print=FALSE,add=FALSE,subplots=1:17,seas=1,
         parmlabel <- names(MGparmAdj)[icol]
         parmvals  <- MGparmAdj[,icol]
         # check for changes
-        if(length(unique(parmvals)) > 1){
+        if(length(unique(parmvals[MGparmAdj$Yr <= endyr])) > 1){
           # make plot
           if(plot) timeVaryingParmFunc(parmlabel)
           if(print){
