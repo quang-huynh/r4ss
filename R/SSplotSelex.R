@@ -357,8 +357,13 @@ SSplotSelex <-
       # if 'spacepoints' is less than or equal to 0, don't show points
       infotable2$pch <- NA
     }
+    
     # add legend
     if(nrow(infotable2)>1)
+      if(factor == "Asel2") {
+        N.unique.fleet <- length(unique(infotable2$FleetName))
+        infotable2 <- infotable2[1:N.unique.fleet, ]
+      }
       legend(legendloc, inset=c(0,0.05), legend=infotable2$longname, col=infotable2$col,
              seg.len=4,
              lty=infotable2$lty, pch=infotable2$pch, lwd=infotable2$lwd, bty='n')
