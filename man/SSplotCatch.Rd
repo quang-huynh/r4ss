@@ -11,7 +11,7 @@ SSplotCatch(replist, subplots = 1:15, add = FALSE, areas = 1,
   maxyr = NULL, annualcatch = TRUE, forecastplot = FALSE,
   plotdir = "default", showlegend = TRUE, legendloc = "topleft",
   order = "default", xlab = "Year", labels = c("Harvest rate/Year",
-  "Continuous F", "Landings", "Total catch", "Predicted Discards",
+  "Continuous F", "Landings", "Total catch", "Predicted discards",
   "Discard fraction", "(mt)", "(numbers x1000)", "Observed and expected",
   "aggregated across seasons"), catchasnumbers = NULL, catchbars = TRUE,
   addmax = TRUE, ymax = NULL, pwidth = 6.5, pheight = 5,
@@ -40,7 +40,7 @@ only.  Other options include "o" for overplotting points on lines.}
 \item{fleetcols}{Vector of colors by fleet}
 
 \item{fleetnames}{Optional replacement for fleenames used in data file,
-should only include fleets with catch that appear in catch plots.}
+should include all fleets (not just those with catch)}
 
 \item{lwd}{Line width}
 

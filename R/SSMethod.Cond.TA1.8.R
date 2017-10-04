@@ -4,7 +4,7 @@
 #' to do stage-2 weighting of conditional age at length composition data from a
 #' Stock Synthesis model.
 #'
-#' The function outputs a mutiplier, \emph{w},
+#' The function outputs a multiplier, \emph{w},
 #' (with bootstrap 95\% confidence intervals) so that
 #' \emph{N2i} = \emph{w} x \emph{N1i},
 #' where \emph{N1i} and \emph{N2i} are the stage-1 and stage-2 multinomial
@@ -40,6 +40,9 @@
 #' @param fleet vector of one or more fleet numbers whose data are to
 #' be analysed simultaneously (the output N multiplier applies
 #' to all fleets combined)
+#' @param fleetnames Vector of alternative fleet names to draw from for
+#' plot titles and captions. It should have length equal to the number
+#' of fleets in the model, not the number of fleets considered in this function.
 #' @param part vector of one or more partition values; analysis is restricted
 #' to composition data with one of these partition values.
 #' Default is to include all partition values (0, 1, 2).
@@ -52,6 +55,9 @@
 #' @param plotit if TRUE, make an illustrative plot like one or more
 #' panels of Fig. 4 in Francis (2011).
 #' @param printit if TRUE, print results to R console.
+#' @param datonly if TRUE, don't show the model expectations
+#' @param plotadj if TRUE, plot the confidence intervals associated with
+#' the adjusted sample sizes (TRUE by default unless datonly = TRUE)
 #' @param maxpanel maximum number of panels within a plot
 #' @param FullDiagOut Print full diagnostics?
 #' @param ShowVersionB Report the Version B value in addition to the default?
@@ -66,12 +72,24 @@
 #'
 SSMethod.Cond.TA1.8 <-
   function(fit, fleet, part=0:2, seas=NULL,
-           plotit=TRUE, printit=TRUE, maxpanel=1000, FullDiagOut=FALSE,
-           ShowVersionB=FALSE)
+           plotit=TRUE, printit=TRUE, datonly=FALSE, plotadj=!datonly,
+           maxpanel=1000, FullDiagOut=FALSE,
+           ShowVersionB=FALSE, fleetnames=NULL)
 {
   # Check the type is correct and the pick.sex is correct
   is.in <- function (x, y)!is.na(match(x, y))
 
+  # replace default fleetnames with user input if requested
+  if(is.null(fleetnames)){
+    # use fleetnames in the model
+    fleetnames <- fit$FleetNames
+  }else{
+    # if custom names input, check length
+    if(length(fleetnames) != fit$nfleets){
+      stop('fleetnames needs to be NULL or have length = nfleets = ', fit$nfleets)
+    }
+  }
+  
   # Select the type of datbase
   dbase <- fit[["condbase"]]
   sel <- is.in(dbase$Fleet,fleet) & is.in(dbase$Part,part)
@@ -159,6 +177,7 @@ SSMethod.Cond.TA1.8 <-
 
   Nfleet <- length(unique(pldat[,'Fleet']))
   if(plotit){
+    # make plot
     plindx <- paste(pldat[,'Fleet'])
     uplindx <- unique(plindx)
 
@@ -172,22 +191,41 @@ SSMethod.Cond.TA1.8 <-
     par(mfrow=c(Nr,Nc),mar=c(2,2,1,1)+0.1,mgp=c(0,0.5,0),oma=c(1.2,1.2,0,0),
         las=1)
     par(cex=1)
+    # loop over panels
     for(i in 1:Npanel){
       subpldat <- pldat[plindx==uplindx[i],,drop=FALSE]
       x <- subpldat[,'Yr']
+      ylim <- range(subpldat[,c('ObsloAdj','ObshiAdj','Expmn')], na.rm=TRUE)
+      if(any(is.infinite(ylim))){
+        # 0 sample sizes caused problems with ylim, override with wide range
+        # plot may not make sense but will help users note that a problem exists
+        # (as opposed to skipping the plot)
+        cat("NaN values in Francis calculations, plot may not make sense\n")
+        ylim <- c(0, fit$accuage)
+      }
       plot(x,subpldat[,'Obsmn'],pch='-',
            xlim=if(length(x)>1)range(x) else c(x-0.5,x+0.5),
-           ylim=range(subpldat[,c('ObsloAdj','ObshiAdj','Expmn')]),
+           ylim=ylim,
            xlab='',ylab='')
-      segments(x,subpldat[,'Obslo'],x,subpldat[,'Obshi'],lwd=3)
-      arrows(x,subpldat[,'ObsloAdj'],x,subpldat[,'ObshiAdj'],lwd=1,
-             length=0.03, angle=90, code=3)
+      # add intervals for status-quo sample sizes adjustment
+      segments(x,subpldat[,'Obslo'],x,subpldat[,'Obshi'],lwd=3, lend=3)
+      if(plotadj){
+        # add adjusted intervals
+        arrows(x,subpldat[,'ObsloAdj'],x,subpldat[,'ObshiAdj'],lwd=1,
+               length=0.03, angle=90, code=3)
+      }
       points(x,subpldat[,'Obsmn'],pch=21,bg='grey')
       ord <- order(x)
-      if(length(x)>1)lines(x[ord],subpldat[ord,'Expmn'])
-      else lines(c(x-0.5,x+0.5),rep(subpldat[,'Expmn'],2))
+      # add model expectation
+      if(!datonly){
+        if(length(x)>1) {
+          lines(x[ord],subpldat[ord,'Expmn'])
+        } else {
+          lines(c(x-0.5,x+0.5),rep(subpldat[,'Expmn'],2))
+        }
+      }
       # Lines
-      fl <- fit$FleetNames[subpldat[1,'Fleet']]
+      fl <- fleetnames[subpldat[1,'Fleet']]
       yr <- paste(subpldat[1,'Yr'])
       lab <- paste(fl)
       mtext(lab,side=3,at=mean(x))
@@ -195,30 +233,33 @@ SSMethod.Cond.TA1.8 <-
     mtext('Mean age',side=2,outer=TRUE,las=0)
     mtext('Year',side=1,outer=TRUE)
   }
-  tmp <- matrix(sample(pldat[,'Std.res'],1000*nrow(pldat),replace=TRUE),nrow(pldat))
-  confint <- as.vector(quantile(apply(tmp,2,function(x)1/var(x,na.rm=TRUE)),
-                                c(0.025,0.975)))
-  Output <- c(w=Nmult,lo=confint[1],hi=confint[2])
+  if(!datonly){
+    # calculate intervals and return adjustments only if datonly=FALSE
+    tmp <- matrix(sample(pldat[,'Std.res'],1000*nrow(pldat),replace=TRUE),nrow(pldat))
+    confint <- as.vector(quantile(apply(tmp,2,function(x)1/var(x,na.rm=TRUE)),
+                                  c(0.025,0.975), na.rm=TRUE))
+    Output <- c(w=Nmult,lo=confint[1],hi=confint[2])
 
-  Outs <- paste0("Francis CAA Weights: ",
-                 fit$FleetNames[fleet], ": ", round(Nmult,5),
-                 " (", round(confint[1],5), "-", round(confint[2],5), ")")
-  if(printit){
-    print(Outs)
-  }
-  if(ShowVersionB){
-    # Original Francis method (a.k.a. Francis-B)
-    Nmult2 <- 1/var(AllRes,na.rm=TRUE)
-    tmp <- matrix(sample(AllRes,1000*length(AllRes),replace=TRUE),length(AllRes))
-    confint2 <- as.vector(quantile(apply(tmp,2,function(x)1/var(x,na.rm=TRUE)),
-                                   c(0.025,0.975)))
-
-    Outs <- paste0("Francis CAA Weights-Version B (not recommended): ",
-                   fit$FleetNames[fleet], ": ", round(Nmult2,5), 
-                   " (", round(confint2[1],5), "-", round(confint2[2],5), ")")
+    Outs <- paste0("Francis CAA Weights: ",
+                   fleetnames[fleet], ": ", round(Nmult,5),
+                   " (", round(confint[1],5), "-", round(confint[2],5), ")")
     if(printit){
       print(Outs)
     }
+    if(ShowVersionB){
+      # Original Francis method (a.k.a. Francis-B)
+      Nmult2 <- 1/var(AllRes,na.rm=TRUE)
+      tmp <- matrix(sample(AllRes,1000*length(AllRes),replace=TRUE),length(AllRes))
+      confint2 <- as.vector(quantile(apply(tmp,2,function(x)1/var(x,na.rm=TRUE)),
+                                     c(0.025,0.975)))
+
+      Outs <- paste0("Francis CAA Weights-Version B (not recommended): ",
+                     fleetnames[fleet], ": ", round(Nmult2,5), 
+                     " (", round(confint2[1],5), "-", round(confint2[2],5), ")")
+      if(printit){
+        print(Outs)
+      }
+    }
+    return(Output)
   }
-  return(Output)
 }

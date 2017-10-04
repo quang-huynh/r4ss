@@ -5,9 +5,9 @@
 \title{Modify variance and sample size adjustments in the control file}
 \usage{
 SS_varadjust(dir = "C:/myfiles/mymodels/myrun/", ctlfile = "control.ss_new",
-  newctlfile = "control_modified.ss", keyword = "Variance_adjustments",
+  newctlfile = "control_modified.ss", keyword = "variance adjustments",
   newtable = NULL, newrow = NULL, rownumber = NULL, maxcols = 100,
-  overwrite = FALSE, verbose = TRUE)
+  maxrows = 100, overwrite = FALSE, version = "3.30", verbose = TRUE)
 }
 \arguments{
 \item{dir}{Directory with control file to change.}
@@ -26,10 +26,16 @@ variance adjustments}
 
 \item{rownumber}{Which of the 6 rows to replace with 'newrow' if present?}
 
-\item{maxcols}{Maximum number of columns to search among (may need to
-increase from default if you have a huge number of fleets)}
+\item{maxcols}{Maximum number of columns to search among in 3.24 models
+(may need to increase from default if you have a huge number of fleets)}
+
+\item{maxrows}{Maximum number of rows to search among in 3.30 models
+(may need to increase from default if you have a huge number of fleets)}
 
 \item{overwrite}{Overwrite file if it exists?}
+
+\item{version}{SS version number. Currently only "3.24" or "3.30" are supported,
+either as character or numeric values (noting that numeric 3.30  = 3.3).}
 
 \item{verbose}{TRUE/FALSE switch for amount of detail produced by function.
 Default=TRUE.}
@@ -37,8 +43,23 @@ Default=TRUE.}
 \description{
 Function has not been fully tested yet
 }
+\examples{
+
+   \dontrun{
+     # load model output into R
+     replist <- SS_output(dir='c:/model/')
+
+     # get new variance adjustments (
+     varadjust <- SS_tune_comps(replist, option="Francis")
+     print(varadjust)
+
+     # write new table to file
+     SS_varadjust(dir=replist$inputs$dir, newctlfile="new_control.ss",
+                  newtable=varadjust, overwrite=FALSE)
+   }
+}
 \seealso{
-\code{\link{SS_parlines}}, \code{\link{SS_changepars}}
+\code{\link{SS_tune_comps}}, \code{\link{SS_parlines}}, \code{\link{SS_changepars}}
 }
 \author{
 Ian G. Taylor, Gwladys I. Lambert

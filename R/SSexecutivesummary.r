@@ -1,7 +1,7 @@
 #' A function to create a executive summary tables from an SS Report.sso file
 #'
 #' Reads the Report.sso within the directory and creates executive summary
-#' tables as required by the current Terms of Refernce for West Coast 
+#' tables as required by the current Terms of Reference for West Coast 
 #' groundfish.  Works with Stock Synthesis versions 3.24U and later.
 #' Additionally, historical catch and numbers at ages tables are created.
 #'
@@ -289,12 +289,12 @@ SSexecutivesummary <- function (dir, plotdir = 'default', quant = 0.95, es.only 
 	#======================================================================
 	#ES Table d 1-SPR (%)
 	#======================================================================
-		spr_type = strsplit(base[grep("SPR_ratio_basis",base)]," ")[[1]][3]
-		if (spr_type != "1-SPR") { 
-			print(":::::::::::::::::::::::::::::::::::WARNING:::::::::::::::::::::::::::::::::::::::")
-			print(paste("The SPR is being reported as", spr_type, "."))
-	    	print("West coast groundfish assessments typically report 1-SPR in the executive summary") 
-	   	 	print(":::::::::::::::::::::::::::::::::::WARNING:::::::::::::::::::::::::::::::::::::::")  }
+		spr_type = strsplit(base[grep("SPR_report_basis",base)]," ")[[1]][3]
+		#if (spr_type != "1-SPR") { 
+		#	print(":::::::::::::::::::::::::::::::::::WARNING:::::::::::::::::::::::::::::::::::::::")
+		#	print(paste("The SPR is being reported as", spr_type, "."))
+	    #	print("West coast groundfish assessments typically report 1-SPR in the executive summary") 
+	   	#	print(":::::::::::::::::::::::::::::::::::WARNING:::::::::::::::::::::::::::::::::::::::")  }
 
 		adj.spr = Get.Values(dat = base, label = "SPRratio" , hist, quant)
 		f.value = Get.Values(dat = base, label = "F" , hist, quant)
@@ -493,20 +493,37 @@ SSexecutivesummary <- function (dir, plotdir = 'default', quant = 0.95, es.only 
 		if (check == 2) { "Detailed age-structure set in starter file set = 2 which does not create numbers-at-age table."}
 		if (check != 2){
 			maxAge = length(strsplit(base[grep(paste("1 1 1 1 1 1 1", startyr,sep=" "),base)]," ")[[1]]) - 14
+			singlesex = ifelse(length(base[grep(paste("1 1 2 1 1 1 2", startyr,sep=" "),base)]) == 0, TRUE, FALSE)
 			
-			natage.f = natage.m = 0
-			for(a in 1:nareas){
-				temp = mapply(function(x) temp = as.numeric(strsplit(base[grep(paste(a,"1 1 1 1 1 1", x,sep=" "),base)]," ")[[1]][13:(13+maxAge)]), x = startyr:endyr)
-				natage.f = natage.f + t(temp) 
-				temp = mapply(function(x) temp = as.numeric(strsplit(base[grep(paste(a,"1 2 1 1 1 2", x,sep=" "),base)]," ")[[1]][13:(13+maxAge)]), x = startyr:endyr)
-				natage.m = natage.m + t(temp) 
+			if (singlesex) {
+				natage.f = natage.m = 0
+				for(a in 1:nareas){
+					temp = mapply(function(x) temp = as.numeric(strsplit(base[grep(paste(a,"1 1 1 1 1 1", x,sep=" "),base)]," ")[[1]][14:(14+maxAge)]), x = startyr:endyr)
+					natage.f = natage.f + t(temp) 
+				}
+				
+				colnames(natage.f) = 0:maxAge
+				rownames(natage.f) <- startyr:endyr 
+		
+				write.csv(natage.f, paste0(csv.dir, "/_natage.csv"))
 			}
-			
-			colnames(natage.f) = 0:maxAge; colnames(natage.m) = 0:maxAge		
-			rownames(natage.f) <- startyr:endyr ; rownames(natage.m) <- startyr:endyr
-	
-			write.csv(natage.f, paste0(csv.dir, "/_natage_f.csv"))
-			write.csv(natage.m, paste0(csv.dir, "/_natage_m.csv"))			
+
+			if (!singlesex) {
+				natage.f = natage.m = 0
+				for(a in 1:nareas){
+					temp = mapply(function(x) temp = as.numeric(strsplit(base[grep(paste(a,"1 1 1 1 1 1", x,sep=" "),base)]," ")[[1]][14:(14+maxAge)]), x = startyr:endyr)
+					natage.f = natage.f + t(temp) 
+					temp = mapply(function(x) temp = as.numeric(strsplit(base[grep(paste(a,"1 2 1 1 1 2", x,sep=" "),base)]," ")[[1]][14:(14+maxAge)]), x = startyr:endyr)
+					natage.m = natage.m + t(temp) 
+				}
+				
+				colnames(natage.f) = 0:maxAge; colnames(natage.m) = 0:maxAge		
+				rownames(natage.f) <- startyr:endyr ; rownames(natage.m) <- startyr:endyr
+		
+				write.csv(natage.f, paste0(csv.dir, "/_natage_f.csv"))
+				write.csv(natage.m, paste0(csv.dir, "/_natage_m.csv"))	
+			}
+					
 		}
 
 	}
