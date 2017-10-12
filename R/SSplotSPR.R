@@ -93,8 +93,8 @@ SSplotSPR <-
   }
 
   # temporary disable multi-season models until code cleanup
-  if(nseasons>1) cat("Skipped additional SPR plots because they're not yet configured for multi-season models\n")
-  if(nseasons==1){ 
+  #if(nseasons>1) cat("Skipped additional SPR plots because they're not yet configured for multi-season models\n")
+  #if(nseasons==1){ 
     sprfunc2 <- function(){
       if(!add) plot(0,xlim=range(sprseries$Yr[good]),
                     xlab=labels[1],ylab=labels[3],ylim=c(0,1),type="n")
@@ -202,7 +202,7 @@ SSplotSPR <-
         }
       }
     } # end test for making phase plot
-  } # end check for number of seasons=1
+  #} # end check for number of seasons=1
   if(!is.null(plotinfo)) plotinfo$category <- "SPR"
   return(invisible(plotinfo))
 }
