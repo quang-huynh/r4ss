@@ -10,44 +10,39 @@
 #'
 #' @param dir Locates the directory of the files to be read in, double
 #' backslashes (or forwardslashes) and quotes necessary.
-#' @param model Name of the executable (leaving off the .exe).  Default="ss3"
+#' @param model Name of the executable (leaving off the .exe).
 #' @param repfile Name of the big report file (could be renamed by user).
-#' Default="Report.sso".
 #' @param compfile Name of the composition report file.
-#' Default="CompReport.sso".
-#' @param covarfile Name of the covariance output file.  Default="covar.sso".
-#' @param forefile Name of the forecast file.  Default="Forecast-report.sso".
+#' @param covarfile Name of the covariance output file.
+#' @param forefile Name of the forecast file.
 #' @param wtfile Name of the file containing weight at age data.
-#' Default="wtatage.ss_new".
+#' @param warnfile Name of the file containing warnings.
 #' @param ncols The maximum number of columns in files being read in.  If this
 #' value is too big the function runs more slowly, too small and errors will
 #' occur.  A warning will be output to the R command line if the value is too
 #' small. It should be bigger than the maximum age + 10 and the number of years
-#' + 10. Default=200.
-#' @param forecast Read the forecast-report file? Default=TRUE.
-#' @param warn Read the Warning.sso file? Default=TRUE.
+#' + 10.
+#' @param forecast Read the forecast-report file?
+#' @param warn Read the Warning.sso file?
 #' @param covar Read covar.sso to get variance information and identify bad
-#' correlations? Default=TRUE.
-#' @param readwt Read the weight-at-age file? Default=TRUE.
-#' @param checkcor Check for bad correlations? Default=TRUE.
+#' correlations?
+#' @param readwt Read the weight-at-age file?
+#' @param checkcor Check for bad correlations?
 #' @param cormax The specified threshold for defining high correlations.  A
-#' quantity with any correlation above this value is identified.  Default=0.95.
+#' quantity with any correlation above this value is identified.
 #' @param cormin The specified threshold for defining low correlations.  Only
 #' quantities with all correlations below this value are identified (to find
-#' variables that appear too independent from the model results). Default=0.01.
+#' variables that appear too independent from the model results).
 #' @param printhighcor The maximum number of high correlations to print to the
-#' R GUI. Default=10.
+#' R GUI.
 #' @param printlowcor The maximum number of low correlations to print to the R
-#' GUI. Default=10.
+#' GUI.
 #' @param verbose Return updates of function progress to the R GUI?
-#' Default=TRUE.
 #' @param printstats Print summary statistics about the output to the R GUI?
-#' Default=TRUE.
-#' @param hidewarn Hides some warnings output from the R GUI.  Default=FALSE.
+#' @param hidewarn Hides some warnings output from the R GUI.
 #' @param NoCompOK Allow the function to work without a CompReport file.
-#' Default=FALSE.
 #' @param aalmaxbinrange The largest length bin range allowed for composition
-#' data to be considered as conditional age-at-length data.  Default=4.
+#' data to be considered as conditional age-at-length data.
 #' @return Many values are returned. Complete list would be quite long, but
 #' should probably be created at some point in the future.
 #' @author Ian Stewart, Ian Taylor
@@ -63,6 +58,7 @@ SS_output <-
   function(dir="C:/myfiles/mymodels/myrun/", model="ss3",
            repfile="Report.sso", compfile="CompReport.sso",covarfile="covar.sso",
            forefile="Forecast-report.sso", wtfile="wtatage.ss_new",
+           warnfile="warning.sso",
            ncols=200, forecast=TRUE, warn=TRUE, covar=TRUE, readwt=TRUE,
            checkcor=TRUE, cormax=0.95, cormin=0.01, printhighcor=10, printlowcor=10,
            verbose=TRUE, printstats=TRUE,hidewarn=FALSE, NoCompOK=FALSE,
@@ -178,15 +174,24 @@ SS_output <-
   SS_versionCode <- rephead[grep("#V",rephead)]
   SS_version <- rephead[grep("Stock_Synthesis",rephead)]
   SS_version <- SS_version[substring(SS_version,1,2)!="#C"] # remove any version numbering in the comments
-  SS_versionshort <- toupper(substr(SS_version,1,8))
-  SS_versionNumeric <- as.numeric(substring(SS_versionshort,5))
-  # rough limits on compatibility of this code
+  if(substring(SS_version,1,2)=="#V"){
+    SS_version <- substring(SS_version,3)
+  }
+  if(substring(SS_version,1,4)=="3.30"){
+    SS_versionshort <- "3.30"
+    SS_versionNumeric <- as.numeric(SS_versionshort)
+  }else{
+    # typically something like "SS-V3.24"
+    SS_versionshort <- toupper(substr(SS_version,1,8))
+    SS_versionNumeric <- as.numeric(substring(SS_versionshort,5))
+  }
+
   SS_versionMax <- 3.30
-  SS_versionMin <- 3.21 # a stab in the dark at which versions still work
+  SS_versionMin <- 3.24
 
   # test for version compatibility with this code
   if(SS_versionNumeric < SS_versionMin  | SS_versionNumeric > SS_versionMax){
-    cat("\n! Warning, this function tested on SS-V",SS_versionMin," through SS-V",SS_versionMax,".\n",
+    cat("\n! Warning, this function tested on SS-V3.24 through SS-V3.30.07.\n",
         "  you are using ",substr(SS_version,1,9)," which MIGHT NOT WORK with this R code.\n\n",sep="")
   }else{
     if(verbose)
@@ -398,9 +403,9 @@ SS_output <-
 
   # read warnings file
   if(warn){
-    warnname <- file.path(dir,"warning.sso")
+    warnname <- file.path(dir, warnfile)
     if(!file.exists(warnname)){
-      cat("warning.sso file not found\n")
+      cat(warnfile, "file not found\n")
       nwarn <- NA
       warn <- NA
     }else{
@@ -408,11 +413,12 @@ SS_output <-
       warnstring <- warn[grep("N warnings: ",warn)]
       if(length(warnstring)>0){
         nwarn <- as.numeric(strsplit(warnstring,"N warnings: ")[[1]][2])
-        textblock <- c(paste("were", nwarn, "warnings"),paste("was", nwarn, "warning"))[1+(nwarn==1)]
+        textblock <- c(paste("were", nwarn, "warnings"),
+                       paste("was", nwarn, "warning"))[1+(nwarn==1)]
         if(verbose) cat("Got warning file.\n",
                         " There", textblock, "in", warnname,"\n")
       }else{
-        cat("warning.sso file is missing the string 'N warnings'!\n")
+        cat(warnfile, "file is missing the string 'N warnings'!\n")
         nwarn <- NA
       }
     }
@@ -764,13 +770,23 @@ SS_output <-
   stats$StartTime <- paste(as.character(matchfun2("StartTime",0,"StartTime",0,cols=1:6)),collapse=" ")
   stats$RunTime <- paste(as.character(matchfun2("StartTime",2,"StartTime",2,cols=4:9)),collapse=" ")
 
-  tempfiles  <- as.data.frame(rawrep[4:5,1:2],row.names = NULL)
+  # data return object to fill in various things
+  returndat <- list()
+
+  # input files
   tempfiles <- matchfun2("Data_File",0,"Control_File",0,cols=1:2)
   stats$Files_used <- paste(c(tempfiles[1,],tempfiles[2,]),collapse=" ")
-
+  returndat$Data_File <- tempfiles[1,2]
+  returndat$Control_File <- tempfiles[2,2]
+  
   # check warnings
   stats$Nwarnings <- nwarn
-  if(length(warn)>20) warn <- c(warn[1:20],paste("Note:",length(warn)-20,"additional lines truncated. Look in warning.sso file to see full list."))
+  if(length(warn)>20){
+    warn <- c(warn[1:20],paste("Note:",length(warn)-20,
+                               "additional lines truncated. Look in",
+                               warnfile,
+                               "file to see full list."))
+  }
   stats$warnings <- warn
 
   # likelihoods
@@ -1054,7 +1070,7 @@ SS_output <-
       wtatage_names <- c("yr", "seas", "gender", "growpattern", "birthseas", "fleet",
                          0:accuage)
       # new comment line in 3.30
-      if(SS_versionNumeric >= 3.3){
+      if(SS_versionNumeric >= 3.3 & ncol(wtatage)==length(wtatage_names)+1){
         wtatage_names <- c(wtatage_names, "comment")
       }
       names(wtatage) <- wtatage_names
@@ -1237,10 +1253,6 @@ SS_output <-
 
   # variance and sample size tuning information
   vartune <- matchfun2("INDEX_1",1,"INDEX_1",(nfleets+1),cols=1:21,header=TRUE)
-  vartune <- vartune[vartune$N > 0,]
-  vartune[,1] <- vartune[,21]
-  vartune <- vartune[,c(1,8,11,13,16,18)]
-  stats$index_variance_tuning_check <- vartune
 
   ## FIT_LEN_COMPS
   if(SS_versionNumeric >= 3.3){
@@ -1272,7 +1284,7 @@ SS_output <-
     # avoid NA warnings by removing #IND values
     lenntune$"MeaneffN/MeaninputN"[lenntune$"MeaneffN/MeaninputN"=="-1.#IND"] <- NA
     for(icol in 2:ncol(lenntune)) lenntune[,icol] <- as.numeric(lenntune[,icol])
-    lenntune$"HarEffN/MeanInputN" <- lenntune$"HarMean(effN)"/lenntune$"mean(inputN*Adj)"
+    lenntune$"HarMean/MeanInputN" <- lenntune$"HarMean(effN)"/lenntune$"mean(inputN*Adj)"
   }else{
     # new in 3.30 is keyword at top
     lenntune <- matchfun2("Length_Comp_Fit_Summary",1,"FIT_AGE_COMPS",-1,header=TRUE)
@@ -1282,7 +1294,23 @@ SS_output <-
       lenntune[,icol] <- as.numeric(lenntune[,icol])
     }
     ## new column "Recommend_Var_Adj" in 3.30 now matches calculation below
-    #lenntune$"HarEffN/MeanInputN" <- lenntune$"HarMean"/lenntune$"mean_inputN*Adj"
+    #lenntune$"HarMean/MeanInputN" <- lenntune$"HarMean"/lenntune$"mean_inputN*Adj"
+    lenntune$"HarMean(effN)/mean(inputN*Adj)" <-
+      lenntune$"HarMean"/lenntune$"mean_inputN*Adj"
+
+    # change name to make it clear what the harmonic mean is based on
+    lenntune <- df.rename(lenntune,
+                          oldnames=c("HarMean", "mean_inputN*Adj"),
+                          newnames=c("HarMean(effN)", "mean(inputN*Adj)"))
+
+    # drop distracting column
+    lenntune <- lenntune[ , names(lenntune)!="mean_effN"]
+    
+    # put recommendation and fleetnames at the end
+    #(probably a more efficient way to do this)
+    end.names <- c("Recommend_Var_Adj", "FleetName")
+    lenntune <- lenntune[,c(which(!names(lenntune) %in% end.names),
+                            which(names(lenntune) %in% end.names))]
   }
   stats$Length_comp_Eff_N_tuning_check <- lenntune
 
@@ -1311,22 +1339,45 @@ SS_output <-
                           cols=1:10,header=TRUE)
   }else{
     agentune <- matchfun2("Age_Comp_Fit_Summary",1,"FIT_SIZE_COMPS",-1,
-                          cols=1:10,header=TRUE)
+                          header=TRUE)
   }
+  #browser()
   if(!is.null(dim(agentune))){
-    names(agentune)[10] <- "FleetName"
-    agentune <- agentune[agentune$N>0, c(10,1,4:9)]
+    names(agentune)[ncol(agentune)] <- "FleetName"
+    agentune <- agentune[agentune$N>0, ]
+    
     # avoid NA warnings by removing #IND values
     agentune$"MeaneffN/MeaninputN"[agentune$"MeaneffN/MeaninputN"=="-1.#IND"] <- NA
-    for(i in 2:ncol(agentune)){
-      agentune[,i] <- as.numeric(agentune[,i])
+    for(icol in which(!names(agentune) %in% "FleetName")){
+      agentune[,icol] <- as.numeric(agentune[,icol])
     }
-    agentune$"HarEffN/MeanInputN" <- agentune$"HarMean(effN)"/agentune$"mean(inputN*Adj)"
+    # calculate ratio to be more transparent
+    agentune$"HarMean(effN)/mean(inputN*Adj)" <-
+      agentune$"HarMean(effN)"/agentune$"mean(inputN*Adj)"
+
+    # calculate recommended value (for length data this is done internally in SS)
+    agentune$Recommend_Var_Adj <-
+      agentune$Var_Adj * agentune$"HarMean(effN)/mean(inputN*Adj)"
+
+    # remove distracting columns
+    badnames <- c("mean_effN","Mean(effN/inputN)","MeaneffN/MeaninputN")
+    agentune <- agentune[,!names(agentune) %in% badnames]
+
+    # put fleetnames column at the end (probably a more efficient way to do this)
+    agentune <- agentune[,c(which(names(agentune)!="FleetName"),
+                            which(names(agentune)=="FleetName"))]
+
+    # change name to make it clear what's reported and be constent with lengths
+    agentune <- df.rename(agentune,
+                          oldnames=c("Var_Adj"),
+                          newnames=c("Curr_Var_Adj"))
+    
   }else{
     agentune <- NULL
   }
   stats$Age_comp_Eff_N_tuning_check <- agentune
 
+  
   ## FIT_SIZE_COMPS
   fit_size_comps <- NULL
   if(SS_versionNumeric >= 3.3){
@@ -1341,6 +1392,7 @@ SS_output <-
       fit_size_comps[,icol] <- as.numeric(fit_size_comps[,icol])
     }
   }
+  ### note: should add "Recommend_Var_Adj" value to match other tables
 
   # Size comp effective N tuning check (only available in version 3.30.01.12 and above)
   if(SS_versionNumeric >= 3.3){
@@ -1359,9 +1411,7 @@ SS_output <-
   if(verbose) cat("Finished primary run statistics list\n")
   flush.console()
 
-  # data return object
-  returndat <- list()
-
+  # add stuff to list to return
   if(SS_versionNumeric <= 3.24){
     returndat$definitions  <- defs
     returndat$fleet_ID     <- fleet_ID
@@ -1381,6 +1431,7 @@ SS_output <-
   }
   returndat$survey_units <- survey_units
   returndat$survey_error <- survey_error
+  returndat$index_variance_tuning_check <- vartune
   returndat$IsFishFleet  <- IsFishFleet
   returndat$nfishfleets  <- nfishfleets
 
@@ -1448,6 +1499,10 @@ SS_output <-
     FecPar1name <- "Eggs_intercept_Fem"
     FecPar2name <- "Eggs_slope_Wt_Fem"
   }
+  if(is.na(lbinspop[1])){
+    lbinspop <- biology$Low[biology$GP==1]
+  }
+      
   returndat$biology <- biology
   returndat$FecType <- FecType
   returndat$FecPar1name <- FecPar1name
@@ -1563,12 +1618,12 @@ SS_output <-
     # if all that doesn't get satisfied, biology comes next
     ageselex <- matchfun2("AGE_SELEX",4,"BIOLOGY",-1,header=TRUE)
   }
-  # filter forecast years from selectivity if no forecast
-  # NOTE: maybe refine this in 3.30
-  if(!forecast) ageselex <- ageselex[ageselex$year <= endyr,]
   ageselex <- df.rename(ageselex,
                         oldnames=c("fleet", "year", "seas", "gender", "morph", "label", "factor"),
                         newnames=c("Fleet", "Yr", "Seas", "Sex", "Morph", "Label", "Factor"))
+  # filter forecast years from selectivity if no forecast
+  # NOTE: maybe refine this in 3.30
+  if(!forecast) ageselex <- ageselex[ageselex$Yr <= endyr,]
   
   for(icol in (1:ncol(ageselex))[!(names(ageselex) %in% c("Factor","Label"))]) ageselex[,icol] <- as.numeric(ageselex[,icol])
   returndat$ageselex <- ageselex
@@ -1597,6 +1652,9 @@ SS_output <-
 
   # time series
   timeseries <- matchfun2("TIME_SERIES",1,"SPR_series",-1,header=TRUE)
+  # temporary fix for 3.30.03.06
+  timeseries <- timeseries[timeseries$Seas != "recruits",]
+  
   timeseries[timeseries=="_"] <- NA
   for(i in (1:ncol(timeseries))[names(timeseries)!="Era"]) timeseries[,i] = as.numeric(timeseries[,i])
 
@@ -1943,8 +2001,23 @@ SS_output <-
     }
     returndat$natage <- rawnatage
   }
-  # Note: should add read of BIOMASS_AT_AGE section here
-  
+
+  # Biomass at age
+  if(SS_versionNumeric >= 3.3){
+    batage <- matchfun2("BIOMASS_AT_AGE", 1, "NUMBERS_AT_LENGTH", -1,
+                        cols=1:(13+accuage), substr1=FALSE)
+  }else{
+    batage <- NULL
+  }
+  if(length(batage)>1){
+    names(batage) <- batage[1,]
+    batage <- batage[-1,]
+    for(i in (1:ncol(batage))[!(names(batage) %in% c("Beg/Mid", "Era"))]){
+      batage[,i] = as.numeric(batage[,i])
+    }
+    returndat$batage <- batage
+  }
+
   # Numbers at length
   col.adjust <- 12
   if(SS_versionNumeric < 3.30){
@@ -2055,7 +2128,8 @@ SS_output <-
 
   # age-length matrix
   rawALK <- matchfun2("AGE_LENGTH_KEY",4,"AGE_AGE_KEY",-1,cols=1:(accuage+2))
-  if(length(rawALK)>1){
+  if(length(rawALK)>1 & rawALK[[1]][1]!="absent" &&
+     length(grep("AGE_AGE_KEY", rawALK[,1]))==0){
     morph_col <- 5
     if(SS_versionNumeric < 3.3 &
        length(grep("Sub_Seas", rawALK[,3]))==0){
@@ -2282,59 +2356,65 @@ SS_output <-
   }
 
   # sort by year and remove any retain only essential columns
-  recruitpars <- recruitpars[order(recruitpars$Yr), c("Value","Parm_StDev","type","Yr")]
-
+  if(!is.null(recruitpars)){
+    recruitpars <- recruitpars[order(recruitpars$Yr),
+                               c("Value","Parm_StDev","type","Yr")]
+  }
+  
   # add recruitpars to list of stuff that gets returned
   returndat$recruitpars <- recruitpars
   
-  # calculating values related to tuning SigmaR
-  sigma_R_info <- data.frame(period = c("Main","Early+Main","Early+Main+Late"),
-                             N_devs = 0,
-                             SD_of_devs = NA,
-                             Var_of_devs = NA,
-                             mean_SE = NA,
-                             mean_SEsquared = NA)
+  if(is.null(recruitpars)){
+    sigma_R_info <- NULL
+  }else{
+    # calculating values related to tuning SigmaR
+    sigma_R_info <- data.frame(period = c("Main","Early+Main","Early+Main+Late"),
+                               N_devs = 0,
+                               SD_of_devs = NA,
+                               Var_of_devs = NA,
+                               mean_SE = NA,
+                               mean_SEsquared = NA)
 
-  # calculate recdev stats  for Main period
-  subset <- recruitpars$type %in% c("Main_InitAge", "Main_RecrDev")
-  within_period <- sigma_R_info$period=="Main"
-  sigma_R_info$N_devs[within_period] <- sum(subset)
-  sigma_R_info$SD_of_devs[within_period] <- sd(recruitpars$Value[subset])
-  sigma_R_info$mean_SE[within_period] <- mean(recruitpars$Parm_StDev[subset])
-  sigma_R_info$mean_SEsquared[within_period] <-
-    mean((recruitpars$Parm_StDev[subset])^2)
+    # calculate recdev stats  for Main period
+    subset <- recruitpars$type %in% c("Main_InitAge", "Main_RecrDev")
+    within_period <- sigma_R_info$period=="Main"
+    sigma_R_info$N_devs[within_period] <- sum(subset)
+    sigma_R_info$SD_of_devs[within_period] <- sd(recruitpars$Value[subset])
+    sigma_R_info$mean_SE[within_period] <- mean(recruitpars$Parm_StDev[subset])
+    sigma_R_info$mean_SEsquared[within_period] <-
+      mean((recruitpars$Parm_StDev[subset])^2)
 
-  # calculate recdev stats  for Early+Main periods
-  subset <- recruitpars$type %in% c("Early_RecrDev", "Early_InitAge",
-                                    "Main_InitAge", "Main_RecrDev")
-  within_period <- sigma_R_info$period=="Early+Main"
-  sigma_R_info$N_devs[within_period] <- sum(subset)
-  sigma_R_info$SD_of_devs[within_period] <- sd(recruitpars$Value[subset])
-  sigma_R_info$mean_SE[within_period] <- mean(recruitpars$Parm_StDev[subset])
-  sigma_R_info$mean_SEsquared[within_period] <-
-    mean((recruitpars$Parm_StDev[subset])^2)
+    # calculate recdev stats  for Early+Main periods
+    subset <- recruitpars$type %in% c("Early_RecrDev", "Early_InitAge",
+                                      "Main_InitAge", "Main_RecrDev")
+    within_period <- sigma_R_info$period=="Early+Main"
+    sigma_R_info$N_devs[within_period] <- sum(subset)
+    sigma_R_info$SD_of_devs[within_period] <- sd(recruitpars$Value[subset])
+    sigma_R_info$mean_SE[within_period] <- mean(recruitpars$Parm_StDev[subset])
+    sigma_R_info$mean_SEsquared[within_period] <-
+      mean((recruitpars$Parm_StDev[subset])^2)
 
-  # calculate recdev stats for Early+Main+Late periods
-  subset <- recruitpars$type %in% c("Early_RecrDev", "Early_InitAge",
-                                    "Main_InitAge", "Main_RecrDev", "Late_RecrDev")
-  within_period <- sigma_R_info$period=="Early+Main+Late"
-  sigma_R_info$N_devs[within_period] <- sum(subset)
-  sigma_R_info$SD_of_devs[within_period] <- sd(recruitpars$Value[subset])
-  sigma_R_info$mean_SE[within_period] <- mean(recruitpars$Parm_StDev[subset])
-  sigma_R_info$mean_SEsquared[within_period] <-
-    mean((recruitpars$Parm_StDev[subset])^2)
+    # calculate recdev stats for Early+Main+Late periods
+    subset <- recruitpars$type %in% c("Early_RecrDev", "Early_InitAge",
+                                      "Main_InitAge", "Main_RecrDev", "Late_RecrDev")
+    within_period <- sigma_R_info$period=="Early+Main+Late"
+    sigma_R_info$N_devs[within_period] <- sum(subset)
+    sigma_R_info$SD_of_devs[within_period] <- sd(recruitpars$Value[subset])
+    sigma_R_info$mean_SE[within_period] <- mean(recruitpars$Parm_StDev[subset])
+    sigma_R_info$mean_SEsquared[within_period] <-
+      mean((recruitpars$Parm_StDev[subset])^2)
 
-  # add variance as square of SD
-  sigma_R_info$Var_of_devs <- sigma_R_info$SD_of_devs^2
+    # add variance as square of SD
+    sigma_R_info$Var_of_devs <- sigma_R_info$SD_of_devs^2
 
-  # add sqrt of sum
-  sigma_R_info$sqrt_sum_of_components <- sqrt(sigma_R_info$Var_of_devs +
-                                                sigma_R_info$mean_SEsquared)
-  # ratio of sqrt of sum to sigmaR
-  sigma_R_info$SD_of_devs_over_sigma_R <- sigma_R_info$SD_of_devs/sigma_R_in
-  sigma_R_info$sqrt_sum_over_sigma_R <- sigma_R_info$sqrt_sum_of_components/sigma_R_in
-  sigma_R_info$alternative_sigma_R <- sigma_R_in * sigma_R_info$sqrt_sum_over_sigma_R
-    
+    # add sqrt of sum
+    sigma_R_info$sqrt_sum_of_components <- sqrt(sigma_R_info$Var_of_devs +
+                                                  sigma_R_info$mean_SEsquared)
+    # ratio of sqrt of sum to sigmaR
+    sigma_R_info$SD_of_devs_over_sigma_R <- sigma_R_info$SD_of_devs/sigma_R_in
+    sigma_R_info$sqrt_sum_over_sigma_R <- sigma_R_info$sqrt_sum_of_components/sigma_R_in
+    sigma_R_info$alternative_sigma_R <- sigma_R_in * sigma_R_info$sqrt_sum_over_sigma_R
+  }
   stats$sigma_R_in   <- sigma_R_in
   stats$sigma_R_info <- sigma_R_info
   stats$rmse_table   <- rmse_table

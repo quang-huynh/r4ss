@@ -5,8 +5,8 @@
 \title{Apply Francis composition weighting method TA1.8 for conditional age-at-length fits}
 \usage{
 SSMethod.Cond.TA1.8(fit, fleet, part = 0:2, seas = NULL, plotit = TRUE,
-  printit = TRUE, maxpanel = 1000, FullDiagOut = FALSE,
-  ShowVersionB = FALSE)
+  printit = TRUE, datonly = FALSE, plotadj = !datonly, maxpanel = 1000,
+  FullDiagOut = FALSE, ShowVersionB = FALSE, fleetnames = NULL)
 }
 \arguments{
 \item{fit}{Stock Synthesis output as read by r4SS function SS_output}
@@ -31,11 +31,20 @@ panels of Fig. 4 in Francis (2011).}
 
 \item{printit}{if TRUE, print results to R console.}
 
+\item{datonly}{if TRUE, don't show the model expectations}
+
+\item{plotadj}{if TRUE, plot the confidence intervals associated with
+the adjusted sample sizes (TRUE by default unless datonly = TRUE)}
+
 \item{maxpanel}{maximum number of panels within a plot}
 
 \item{FullDiagOut}{Print full diagnostics?}
 
 \item{ShowVersionB}{Report the Version B value in addition to the default?}
+
+\item{fleetnames}{Vector of alternative fleet names to draw from for
+plot titles and captions. It should have length equal to the number
+of fleets in the model, not the number of fleets considered in this function.}
 }
 \description{
 Uses an extension of method TA1.8 (described in Appendix A of Francis, 2011)
@@ -43,7 +52,7 @@ to do stage-2 weighting of conditional age at length composition data from a
 Stock Synthesis model.
 }
 \details{
-The function outputs a mutiplier, \emph{w},
+The function outputs a multiplier, \emph{w},
 (with bootstrap 95\% confidence intervals) so that
 \emph{N2i} = \emph{w} x \emph{N1i},
 where \emph{N1i} and \emph{N2i} are the stage-1 and stage-2 multinomial
