@@ -736,7 +736,11 @@ SS_output <-
         }
         agebins <- sort(unique(agedbase$Bin[!is.na(agedbase$Bin)]))
       }else{
-        agebins <- NA
+        if(nrow(condbase)>0){
+          agebins <- sort(unique(condbase$Bin[!is.na(condbase$Bin)]))
+        }else{
+          agebins <- NA
+        }
       }
       nagebins <- length(agebins)
     }
@@ -956,12 +960,96 @@ SS_output <-
                                       rownames(estimated_non_dev_parameters))))
   }
   # remove any dev rows from table
-  if(!is.null(devrows)){
+  if(!is.null(devrows) & length(devrows) > 0){
     estimated_non_dev_parameters <- estimated_non_dev_parameters[-devrows,]
   }
   # add table to stats that get printed in console
   stats$estimated_non_dev_parameters <- estimated_non_dev_parameters
 
+  # Dirichlet-Multinomial parameters
+  # (new option for comp likelihood that uses these parameters for automated
+  #  data weighting)
+  DM_pars <- parameters[grep("ln(EffN_mult)", parameters$Label, fixed=TRUE),
+                       names(parameters)%in% c("Value","Phase","Min","Max")]
+  DM_pars$Theta <- exp(DM_pars$Value)
+  DM_pars$"Theta/(1+Theta)" <- DM_pars$Theta / (1 + DM_pars$Theta)
+  # if D-M parameters are present, then do some extra processing steps
+  age_data_info <- NULL
+  if(nrow(DM_pars) > 0){
+    # save to "stats" list that gets printed to R console
+    # (and also added to "returndat" which is returned by this function)
+    stats$Dirichlet_Multinomial_pars <- DM_pars
+    
+    # figure out which fleet uses which parameter,
+    # currently (as of SS version 3.30.10.00), requires reading data file
+    if(verbose){
+      message("Reading data.ss_new for info on Dirichlet-Multinomial parameters")
+    }
+    datfile <- SS_readdat_3.30(file = file.path(dir, 'data.ss_new'),
+                               verbose=verbose)
+    age_data_info <- datfile$age_info
+    if(!is.null(age_data_info)){
+      age_data_info$CompError <- as.numeric(age_data_info$CompError)
+      age_data_info$ParmSelect <- as.numeric(age_data_info$ParmSelect)
+      if(!any(age_data_info$CompError==1)){
+        stop("Problem Dirichlet-Multinomial parameters: ",
+             "Report file indicates parameters exist, but no CompError values ",
+             "in data.ss_new are equal to 1.")
+      }
+    }
+    if(datfile$use_lencomp){
+      len_info <- datfile$len_info
+      if(any(len_info$CompError==1)){
+        warning("r4ss doesn't yet account for Dirichlet-Multinomial likelihood ",
+                "for length comps.")
+      }
+    }
+    
+    ## get Dirichlet-Multinomial parameter values and adjust input N
+    if(comp){ # only possible if CompReport.sso was read
+      if(nrow(agedbase) > 0){
+        agedbase$DM_effN <- NA
+      }
+      if(nrow(agedbase) > 0){
+        agedbase$DM_effN <- NA
+      }
+      if(nrow(condbase) > 0){
+        condbase$DM_effN <- NA
+      }
+      # loop over fleets within agedbase
+      for(f in unique(agedbase$Fleet)){
+        if(age_data_info$CompError[f] == 1){
+          ipar <- age_data_info$ParmSelect[f]
+          if(ipar %in% 1:nrow(DM_pars)){ 
+            Theta <- DM_pars$Theta[ipar]
+          }else{
+            stop("Issue with Dirichlet-Multinomial parameter:",
+                 "Fleet = ", f, "and ParmSelect = ", ipar)
+          }
+          sub <- agedbase$Fleet == f
+          agedbase$DM_effN[sub] <-
+            1 / (1+Theta) + agedbase$N[sub] * Theta / (1+Theta)
+        } # end test for D-M likelihood for this fleet
+      } # end loop over fleets within agedbase
+      # loop over fleets within condbase
+      for(f in unique(condbase$Fleet)){
+        if(age_data_info$CompError[f] == 1){
+          ipar <- age_data_info$ParmSelect[f]
+          if(ipar %in% 1:nrow(DM_pars)){ 
+            Theta <- DM_pars$Theta[ipar]
+          }else{
+            stop("Issue with Dirichlet-Multinomial parameter:",
+                 "Fleet = ", f, "and ParmSelect = ", ipar)
+          }
+          sub <- condbase$Fleet == f
+          condbase$DM_effN[sub] <-
+            1 / (1+Theta) + condbase$N[sub] * Theta / (1+Theta)
+        } # end test for D-M likelihood for this fleet
+      } # end loop over fleets within condbase
+    } # end test for whether CompReport.sso info is available
+  } # end section related to Dirichlet-Multinomial likelihood
+  
+  
   # read covar.sso file
   if(covar){
     CoVar <- read.table(covarfile,header=TRUE,colClasses=c(rep("numeric",4),rep("character",4),"numeric"),skip=covarskip)
@@ -1130,7 +1218,7 @@ SS_output <-
   managementratiolabels <- matchfun2("DERIVED_QUANTITIES",1,"DERIVED_QUANTITIES",3,cols=1:2)
   names(managementratiolabels) <- c("Ratio","Label")
 
-  # new note about how forecast selectivity is modeled added in 3.30
+  # new message about how forecast selectivity is modeled added in 3.30.06
   # (has impact on read of time-varying parameters below)
   forecast_selectivity <- grep("forecast_selectivity", rawrep[,1], value=TRUE)
   if(length(forecast_selectivity)==0){
@@ -1148,18 +1236,31 @@ SS_output <-
   MGparmAdj <- df.rename(MGparmAdj, oldnames="Year", newnames="Yr")
   # make values numeric
   if(nrow(MGparmAdj)>0){
-    for(icol in 1:ncol(MGparmAdj)) MGparmAdj[,icol] <- as.numeric(MGparmAdj[,icol])
+    for(icol in 1:ncol(MGparmAdj)){
+      MGparmAdj[,icol] <- as.numeric(MGparmAdj[,icol])
+    }
   }else{
     MGparmAdj <- NA
   }
 
   # time-varying size-selectivity parameters
-  SelSizeAdj <- matchfun2("selparm(Size)_By_Year_after_adjustments",2,"selparm(Age)_By_Year_after_adjustments",-1)
+  SelSizeAdj <- matchfun2("selparm(Size)_By_Year_after_adjustments",2,
+                          "selparm(Age)_By_Year_after_adjustments",-1)
   if(nrow(SelSizeAdj)>2){
     SelSizeAdj <- SelSizeAdj[,apply(SelSizeAdj,2,emptytest)<1]
     SelSizeAdj[SelSizeAdj==""] <- NA
-    for(icol in 1:ncol(SelSizeAdj)) SelSizeAdj[,icol] <- as.numeric(SelSizeAdj[,icol])
-    names(SelSizeAdj) <- c("FleetSvy","Yr",paste("Par",1:(ncol(SelSizeAdj)-2),sep=""))
+    # make values numeric
+    for(icol in 1:ncol(SelSizeAdj)){
+      SelSizeAdj[,icol] <- as.numeric(SelSizeAdj[,icol])
+    }
+    # provide rownames (after testing for extra column added in 3.30.06.02)
+    if(rawrep[matchfun("selparm(Size)_By_Year_after_adjustments")+1, 3] == "Change?"){
+      names(SelSizeAdj) <- c("Fleet","Yr","Change?",
+                             paste("Par",1:(ncol(SelSizeAdj)-3),sep=""))
+    }else{
+      names(SelSizeAdj) <- c("Fleet","Yr",
+                             paste("Par",1:(ncol(SelSizeAdj)-2),sep=""))
+    }
   }else{
     SelSizeAdj <- NA
   }
@@ -1169,11 +1270,21 @@ SS_output <-
   if(nrow(SelAgeAdj)>2){
     SelAgeAdj <- SelAgeAdj[,apply(SelAgeAdj,2,emptytest)<1]
     SelAgeAdj[SelAgeAdj==""] <- NA
+    # test for empty table
     if(SelAgeAdj[1,1]=="RECRUITMENT_DIST"){
       SelAgeAdj <- NA
     }else{
+      # make values numeric
       for(icol in 1:ncol(SelAgeAdj)) SelAgeAdj[,icol] <- as.numeric(SelAgeAdj[,icol])
-      names(SelAgeAdj) <- c("FleetSvy","Yr",paste("Par",1:(ncol(SelAgeAdj)-2),sep=""))
+      names(SelAgeAdj) <- c("Flt","Yr",paste("Par",1:(ncol(SelAgeAdj)-2),sep=""))
+      # provide rownames (after testing for extra column added in 3.30.06.02)
+      if(rawrep[matchfun("selparm(Age)_By_Year_after_adjustments")+1, 3] == "Change?"){
+        names(SelAgeAdj) <- c("Fleet","Yr","Change?",
+                               paste("Par",1:(ncol(SelAgeAdj)-3),sep=""))
+      }else{
+        names(SelAgeAdj) <- c("Fleet","Yr",
+                               paste("Par",1:(ncol(SelAgeAdj)-2),sep=""))
+      }
     }
   }else{
     SelAgeAdj <- NA
@@ -1279,8 +1390,23 @@ SS_output <-
     "first_yr_full", "last_yr_full", "first_yr_recent", "max_bias_adj")
   rownames(breakpoints_for_bias_adjustment_ramp) <- NULL
 
-  # Spawner-recruit curve
+  ## Spawner-recruit curve
+  # read SPAWN_RECRUIT table
   raw_recruit <- matchfun2("SPAWN_RECRUIT",last_row_index+1,"INDEX_2",-1,cols=1:9)
+  # starting in 3.30.11.00, a new section with the full spawn recr curve was added
+  spawn_recruit_end <- grep("Full_Spawn_Recr_Curve", raw_recruit[,1])
+  if(length(spawn_recruit_end) > 0){
+    # split the two pieces into separate tables
+    Full_Spawn_Recr_Curve <- raw_recruit[(spawn_recruit_end+1):nrow(raw_recruit), 1:2]
+    raw_recruit <- raw_recruit[1:(spawn_recruit_end-2),]
+    # make numeric
+    names(Full_Spawn_Recr_Curve) <- Full_Spawn_Recr_Curve[1, ]
+    Full_Spawn_Recr_Curve <- Full_Spawn_Recr_Curve[-1, ]
+    Full_Spawn_Recr_Curve[, 1:2] <- lapply(Full_Spawn_Recr_Curve[, 1:2], as.numeric)
+  }else{
+    Full_Spawn_Recr_Curve <- NULL
+  }
+  # process SPAWN_RECRUIT table
   names(raw_recruit) <- raw_recruit[1,]
   raw_recruit[raw_recruit=="_"] <- NA
   raw_recruit <- raw_recruit[-(1:2),] # remove header rows
@@ -1292,8 +1418,13 @@ SS_output <-
                        newnames=c("Yr", "SpawnBio", "bias_adjusted"))
 
   # variance and sample size tuning information
-  vartune <- matchfun2("INDEX_1",1,"INDEX_1",(nfleets+1),cols=1:21,header=TRUE)
-
+  vartune <- matchfun2("INDEX_1", 1, "INDEX_1", (nfleets+1), header=TRUE)
+  # fill in column name that was missing in SS 3.24 (and perhaps other versions)
+  # and replace inconsistent name in some 3.30 versions with standard name
+  vartune <- df.rename(vartune,
+                       oldnames=c("NoName", "fleetname"),
+                       newnames=c("Name", "Name"))
+  
   ## FIT_LEN_COMPS
   if(SS_versionNumeric >= 3.3){
     # This section hasn't been read by SS_output in the past,
@@ -1484,6 +1615,7 @@ SS_output <-
   returndat$lbinspop    <- lbinspop
   returndat$nlbinspop   <- nlbinspop
   returndat$sizebinlist <- sizebinlist
+  returndat$age_data_info <- age_data_info
   returndat$agebins     <- agebins
   returndat$nagebins    <- nagebins
   returndat$accuage     <- accuage
@@ -1502,6 +1634,7 @@ SS_output <-
   returndat$SelAgeAdj   <- SelAgeAdj
   returndat$recruitment_dist <- recruitment_dist
   returndat$recruit     <- recruit
+  returndat$Full_Spawn_Recr_Curve <- Full_Spawn_Recr_Curve
   returndat$breakpoints_for_bias_adjustment_ramp <- breakpoints_for_bias_adjustment_ramp
 
 
@@ -1933,16 +2066,14 @@ SS_output <-
 
     # head of Kobe_Plot section differs by SS version,
     # but I haven't kept track of which is which
-    Kobe_head <- matchfun2("Kobe_Plot",0,"Kobe_Plot",3,header=TRUE)
-    shift <- 1
+    Kobe_head <- matchfun2("Kobe_Plot",0,"Kobe_Plot",5,header=TRUE)
+    shift <- grep("^Y", Kobe_head[,1]) # may be "Year" or "Yr"
     Kobe_warn <- NA
     Kobe_MSY_basis <- NA
     if(length(grep("_basis_is_not",Kobe_head[1,1]))>0){
-      shift <- shift+1
       Kobe_warn <- Kobe_head[1,1]
     }
     if(length(grep("MSY_basis",Kobe_head[2,1]))>0){
-      shift <- shift+1
       Kobe_MSY_basis <- Kobe_head[2,1]
     }
     Kobe <- matchfun2("Kobe_Plot",shift,"SPAWN_RECRUIT",-1,header=TRUE)
@@ -1950,9 +2081,7 @@ SS_output <-
     Kobe[Kobe=="1.#INF"] <- NA
     Kobe[Kobe=="-1.#IND"] <- NA
     names(Kobe) <- gsub("/", ".", names(Kobe), fixed=TRUE)
-    for(icol in 1:3){
-      Kobe[,icol] <- as.numeric(Kobe[,icol])
-    }
+    Kobe[, 1:3] <- lapply(Kobe[, 1:3], as.numeric)
   }else{
     Kobe <- NA
     Kobe_warn <- NA
