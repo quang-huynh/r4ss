@@ -4,15 +4,22 @@
 \alias{SS_readdat}
 \title{read Stock Synthesis data file}
 \usage{
-SS_readdat(file, version = "3.24", verbose = TRUE, echoall = FALSE,
-  section = NULL)
+SS_readdat(
+  file,
+  version = NULL,
+  verbose = TRUE,
+  echoall = FALSE,
+  section = NULL
+)
 }
 \arguments{
 \item{file}{Filename either with full path or relative to working directory.}
 
 \item{version}{SS version number.
 Currently "2.00", "3.00", "3.24" or "3.30" are supported,
-either as character or numeric values (noting that numeric 3.30  = 3.3).}
+either as character or numeric values (noting that numeric 3.30  = 3.3). If
+version is NULL, the version (3.24 or 3.30) will be looked for on the first
+line of the file.}
 
 \item{verbose}{Should there be verbose output while running the file?
 Default=TRUE.}
@@ -41,5 +48,6 @@ attempts to do everything. Returned datlist is mostly consistent across versions
 \code{\link{SS_writeforecast}}, \code{\link{SS_writedat}}
 }
 \author{
-Ian G. Taylor, Allan C. Hicks, Neil L. Klaer
+Ian G. Taylor, Allan C. Hicks, Neil L. Klaer, Kelli F. Johnson,
+Chantel R. Wetzel
 }

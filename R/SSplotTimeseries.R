@@ -6,6 +6,18 @@
 #'
 #' @param replist list created by \code{SS_output}
 #' @param subplot number controlling which subplot to create
+#' Numbering of subplots is as follows:
+#' \itemize{
+#'   \item 1 Total biomass (mt) with forecast
+#'   \item 3: Total biomass (mt) at beginning of season 1 with forecast
+#'   \item 4: Summary biomass (mt) with forecast
+#'   \item 6: Summary biomass (mt) at beginning of season 1 with forecast
+#'   \item 7: Spawning output with forecast with ~95% asymptotic intervals
+#'   \item 9: Fraction of unfished with forecast with ~95% asymptotic intervals
+#'   \item 11: Age-0 recruits (1,000s) with forecast with ~95% asymptotic intervals
+#'   \item 14: Age-0 recruits (1,000s) by birth season with forecast
+#'   \item 15: Fraction of total Age-0 recruits by birth season with forecast
+#' }
 #' @param add add to existing plot? (not yet implemented)
 #' @param areas optional subset of areas to plot for spatial models
 #' @param areacols vector of colors by area. Default uses rich.colors by Arni
@@ -14,8 +26,11 @@
 #' @param forecastplot add points from forecast years
 #' @param uncertainty add intervals around quantities for which uncertainty is
 #' available
-#' @param bioscale scaling for spawning biomass by default it will be set to
-#' 0.5 for single-sex models, and 1.0 for all others
+#' @param bioscale scaling for spawning biomass. Default = 1.
+#' Previously this was set to 
+#' 0.5 for single-sex models, and 1.0 for all others, but now single-sex
+#' models are assumed to use the -1 option for Nsexes in the data file so the
+#' scaling is done automatically by SS.
 #' @param minyr optional input for minimum year to show in plots
 #' @param maxyr optional input for maximum year to show in plots
 #' @param plot plot to active plot device?
@@ -42,7 +57,7 @@
 SSplotTimeseries <-
   function(replist,subplot,add=FALSE,areas="all",
            areacols="default",areanames="default",
-           forecastplot=TRUE,uncertainty=TRUE,bioscale="default",
+           forecastplot=TRUE,uncertainty=TRUE,bioscale=1,
            minyr=-Inf,maxyr=Inf,
            plot=TRUE,print=FALSE,plotdir="default",verbose=TRUE,
            btarg="default",minbthresh="default",xlab="Year",
@@ -85,7 +100,7 @@ SSplotTimeseries <-
                 "Summary biomass (mt)",         #3
                 "Summary biomass (mt) at beginning of season", #4
                 "Spawning biomass (mt)",        #5
-                "Relative spawning biomass",    #6
+                "Fraction of unfished",         #6
                 "Spawning output",              #7
                 "Age-0 recruits (1,000s)",      #8
                 "Fraction of total Age-0 recruits",  #9
@@ -154,10 +169,6 @@ SSplotTimeseries <-
     areanames <- paste("area",1:nareas)
   }
 
-  #scaling factor for single sex models
-  if(bioscale=="default"){
-    if(nsexes==1) bioscale <- 0.5 else bioscale <- 1
-  }
   # modifying data to subset for a single season
   ts <- timeseries
   
@@ -175,12 +186,6 @@ SSplotTimeseries <-
 
   # crop any years outside the range of maxyr to maxyr
   ts <- ts[ts$YrSeas >= minyr & ts$YrSeas <= maxyr,]
-
-  # warn about spawning season--seems to no longer be necessary now that title
-  # is update for to reflect spawning season
-  ## if(spawnseas>1 & subplot %in% c(3,6,7,8,9,10) ){
-  ##   cat("Note: spawning seems to be in season ",spawnseas,". Some plots will show only this season.\n",sep="")
-  ## }
 
   # define which years are forecast or not
   ts$period <- "time"
@@ -232,10 +237,11 @@ SSplotTimeseries <-
       ylab <- labels[8]
       # override missing value in case (model from Geoff Tuck run with 3.30.08.02)
       # where spawn_month = 7 with settlement at age 1 (the following year)
-      if(all(yvals[ts$Era=="VIRG"]==0)){
+      # 30 Oct 2019: limiting this override to models with only 1 season
+      if(all(yvals[ts$Era=="VIRG"]==0 & max(ts$Seas == 1))){
         yvals[ts$Era=="VIRG"] <- derived_quants["Recr_Virgin", "Value"]
       }
-      if(all(yvals[ts$Era=="INIT"]==0)){
+      if(all(yvals[ts$Era=="INIT"]==0 & max(ts$Seas == 1))){
         yvals[ts$Era=="INIT"] <- derived_quants["Recr_Unfished", "Value"]
       }
     }
@@ -339,10 +345,6 @@ SSplotTimeseries <-
         if(subplot==9){ # spawning depletion
           stdtable <- derived_quants[substring(derived_quants$Label,1,6)=="Bratio",]
           stdtable$Yr <- as.numeric(substring(stdtable$Label,8))
-
-          ### these temporary fixes now replaced using "B_ratio_denominator"
-          ## if(abs(stdtable$Value[1] - 4)<.1) bioscale <- 1/4 # temporary fix
-          ## if(abs(stdtable$Value[1] - 2.5)<.1) bioscale <- 1/2.5 # temporary fix
           bioscale <- B_ratio_denominator
         }
         if(subplot==11){ # recruitment
@@ -370,10 +372,13 @@ SSplotTimeseries <-
           stdtable$lower <- pmax(v - 1.96*std, 0) # max of value or 0
         }
         if(max(stdtable$Yr) < max(floor(ts$YrSeas))){
-          cat("  !warning:\n",
-              "   ",max(stdtable$Yr),"is last year with uncertainty in Report file, but",max(ts$YrSeas),"is last year of time series.\n",
-              "    Consider changing starter file input for 'max yr for sdreport outputs' to -2\n")
+          warning(max(stdtable$Yr),
+                  " is the last year with uncertainty in Report file, but ",
+                  max(ts$YrSeas)," is last year of time series. ",
+                  "Consider changing starter file input for ",
+                  "'max yr for sdreport outputs' to -2")
         }
+    stdtable <- stdtable[stdtable$Yr >= minyr & stdtable$Yr <= maxyr,]
       }
     }
 
@@ -551,7 +556,9 @@ SSplotTimeseries <-
       } # end loop over areas
       if(nareas>1 & subplot%in%c(2,3,5,6,8,10,12)) legend("topright",legend=areanames[areas],lty=1,pch=1,col=areacols[areas],bty="n")
     } # end test for birthseason plots or not
-    if(verbose) cat("  finished time series subplot ",subplot,": ",main,"\n",sep="")
+    if(verbose){
+      message("  finished time series subplot ", subplot, ": ", main)
+    }
     if(print) dev.off()
     return(plotinfo)
   } # end biofunc

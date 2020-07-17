@@ -16,8 +16,12 @@
 #' @param datplot Make data-only plot of discards? This can override the choice
 #' of \code{subplots}.
 #' @param labels Vector of labels for plots (titles and axis labels)
-#' @param yhi Maximum y-value to include in plot (all data included
-#' regardless). Default = 1.
+#' @param yhi Maximum y-value which will always be included in the plot
+#' (all data included regardless). Default = 1 so that discard fractions are always
+#' plotted on a 0-1 range, but total discard amounts which are greater than this value
+#' will exceed it.
+#' @param ymax Optional maximum y-value to include (useful if upper tails on
+#' discard amounts are very high)
 #' @param col1 First color to use in plot (for expected values)
 #' @param col2 Second color to use in plot (for observations and intervals)
 #' @param pwidth Width of plot
@@ -31,19 +35,21 @@
 #' @export
 #' @seealso \code{\link{SS_plots}}
 SSplotDiscard <-
-  function(replist,subplots=1:2,
-           plot=TRUE,print=FALSE,
-           plotdir="default",
-           fleets="all",
-           fleetnames="default",
-           datplot=FALSE,
-           labels=c("Year",
+  function(replist, subplots = 1:2,
+           plot = TRUE, print = FALSE,
+           plotdir = "default",
+           fleets = "all",
+           fleetnames = "default",
+           datplot = FALSE,
+           labels = c("Year",
            "Discard fraction",
            "Total discards",
            "for"),
-           yhi=1,
-           col1="blue", col2="black",
-           pwidth=6.5,pheight=5.0,punits="in",res=300,ptsize=10,cex.main=1,
+           yhi = 1,
+           ymax  =  NULL,
+           col1 = "blue", col2 = "black",
+           pwidth = 6.5, pheight = 5.0, punits = "in",
+           res = 300, ptsize = 10, cex.main = 1,
            verbose=TRUE)
 {
   # subfunction to write png files
@@ -62,8 +68,12 @@ SSplotDiscard <-
   DF_discard      <- replist$DF_discard   # used in SSv3.11
   discard_type    <- replist$discard_type # used in SSv3.11
   discard_spec    <- replist$discard_spec # used in SSv3.20
-  if(fleetnames[1]=="default") fleetnames <- FleetNames
-  if(plotdir=="default") plotdir <- replist$inputs$dir
+  if(fleetnames[1] == "default"){
+    fleetnames <- FleetNames
+  }
+  if(plotdir == "default"){
+    plotdir <- replist$inputs$dir
+  }
 
   # if discards exist
   if(!is.na(discard) && nrow(discard)>0){
@@ -145,19 +155,30 @@ SSplotDiscard <-
 
       # wrap up plot command in function
       dfracfunc <- function(addfit){
-        plotCI(x=yr,y=ob,uiw=uiw,liw=liw,ylab=ylab,xlab=labels[1],main=title,
-               ylo=0,yhi=yhi,col=col2,sfrac=0.005,lty=1,xlim=xlim,pch=21,bg="white")
+        plotCI(x = yr, y = ob, uiw = uiw, liw = liw,
+               ylab = ylab, xlab = labels[1], main = title,
+               ylo = 0, yhi = yhi,  ymax  =  ymax,
+               col = col2, sfrac = 0.005, lty = 1,
+               xlim = xlim, pch = 21, bg = "white")
         abline(h=0,col="grey")
         if(addfit) points(yr,usedisc$Exp,col=col1,pch="-",cex=2)
       }
 
       # make plots
-      if(!datplot) subplots <- setdiff(subplots,1) # don't do subplot 1 if datplot=FALSE
+      if(!datplot){
+        subplots <- setdiff(subplots,1) # don't do subplot 1 if datplot=FALSE
+      }
       for(isubplot in subplots){ # loop over subplots (data only or with fit)
-        if(isubplot==1) addfit <- FALSE else addfit <- TRUE
-        if(plot) dfracfunc(addfit=addfit)
+        if(isubplot==1){
+          addfit <- FALSE
+        }else{
+          addfit <- TRUE
+        }
+        if(plot){
+          dfracfunc(addfit=addfit)
+        }
         if(print) {
-          if(datplot){
+          if(!addfit){
             file <- paste0("discard_data",FleetName,".png")
           }else{
             file <- paste0("discard_fit",FleetName,".png")

@@ -1,11 +1,10 @@
 #' A function to create a table of biology for assessment reporting:
-#' length, weight, % mature, fecundity, and selectivity
+#' length, weight, \% mature, fecundity, and selectivity
 #'
 #' Takes the object created by SS_output to create table for reporting
 #' for West Coast groundfish.  Works with Stock Synthesis versions 3.30.12 
 #' and later.
 #'
-#' @param dir Locates the directory of the files to be read in, double
 #' @param replist List created by \code{SS_output}
 #' backslashes (or forwardslashes) and quotes necessary.
 #' @param printfolder The sub-directory under 'dir' (see below) in which the

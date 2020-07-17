@@ -103,6 +103,7 @@ SSplotProfile <-
              "Tag_comp",
              "Tag_negbin",
              "Recruitment",
+             "InitEQ_Regime",
              "Forecast_Recruitment",
              "Parm_priors",
              "Parm_softbounds",
@@ -124,6 +125,7 @@ SSplotProfile <-
              "Tag recapture distribution",
              "Tag recapture total",
              "Recruitment",
+             "Initital equilibrium recruitment",
              "Forecast recruitment",
              "Priors",
              "Soft bounds",
@@ -159,8 +161,8 @@ SSplotProfile <-
       stop("to print PNG files, you must supply a directory as 'plotdir'")
     }
     # create directory if it's missing
-    if(file.exists(plotdir)){
-      cat("creating directory:", plotdir, "\n")
+    if(!file.exists(plotdir)){
+      if(verbose) cat("creating directory:", plotdir, "\n")
       dir.create(plotdir, recursive=TRUE)
     }
   }

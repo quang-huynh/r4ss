@@ -4,35 +4,115 @@
 \alias{SSplotComparisons}
 \title{plot model comparisons}
 \usage{
-SSplotComparisons(summaryoutput, subplots = 1:20, plot = TRUE,
-  print = FALSE, png = print, pdf = FALSE, models = "all",
-  endyrvec = "default", indexfleets = NULL, indexUncertainty = FALSE,
-  indexQlabel = TRUE, indexQdigits = 4, indexSEvec = "default",
-  indexPlotEach = FALSE, labels = c("Year", "Spawning biomass (t)",
-  "Relative spawning biomass", "Age-0 recruits (1,000s)",
-  "Recruitment deviations", "Index", "Log index", "1 - SPR", "Density",
-  "Management target", "Minimum stock size threshold", "Spawning output",
-  "Harvest rate"), col = NULL, shadecol = NULL, pch = NULL,
-  lty = 1, lwd = 2, spacepoints = 10, staggerpoints = 1,
-  initpoint = 0, tickEndYr = TRUE, shadeForecast = TRUE,
-  xlim = "default", ylimAdj = 1, xaxs = "r", yaxs = "r",
-  type = "o", uncertainty = TRUE, shadealpha = 0.1, legend = TRUE,
-  legendlabels = "default", legendloc = "topright",
-  legendorder = "default", legendncol = 1, sprtarg = NULL,
-  btarg = NULL, minbthresh = NULL, pwidth = 6.5, pheight = 5,
-  punits = "in", res = 300, ptsize = 10, cex.main = 1,
-  plotdir = NULL, filenameprefix = "", densitynames = c("SSB_Virgin",
-  "R0"), densityxlabs = "default", densityscalex = 1,
-  densityscaley = 1, densityadjust = 1, densitysymbols = TRUE,
-  densitytails = TRUE, densitymiddle = FALSE, densitylwd = 1,
-  fix0 = TRUE, new = TRUE, add = FALSE, par = list(mar = c(5, 4, 1,
-  1) + 0.1), verbose = TRUE, mcmcVec = FALSE,
-  show_equilibrium = TRUE)
+SSplotComparisons(
+  summaryoutput,
+  subplots = 1:20,
+  plot = TRUE,
+  print = FALSE,
+  png = print,
+  pdf = FALSE,
+  models = "all",
+  endyrvec = NULL,
+  indexfleets = NULL,
+  indexUncertainty = FALSE,
+  indexQlabel = TRUE,
+  indexQdigits = 4,
+  indexSEvec = NULL,
+  indexPlotEach = FALSE,
+  labels = c("Year", "Spawning biomass (t)", "Fraction of unfished",
+    "Age-0 recruits (1,000s)", "Recruitment deviations", "Index", "Log index",
+    "SPR-related quantity", "Density", "Management target",
+    "Minimum stock size threshold", "Spawning output", "Harvest rate"),
+  col = NULL,
+  shadecol = NULL,
+  pch = NULL,
+  lty = 1,
+  lwd = 2,
+  spacepoints = 10,
+  staggerpoints = 1,
+  initpoint = 0,
+  tickEndYr = TRUE,
+  shadeForecast = TRUE,
+  xlim = NULL,
+  ylimAdj = 1.05,
+  xaxs = "i",
+  yaxs = "i",
+  type = "o",
+  uncertainty = TRUE,
+  shadealpha = 0.1,
+  legend = TRUE,
+  legendlabels = NULL,
+  legendloc = "topright",
+  legendorder = NULL,
+  legendncol = 1,
+  sprtarg = NULL,
+  btarg = NULL,
+  minbthresh = NULL,
+  pwidth = 6.5,
+  pheight = 5,
+  punits = "in",
+  res = 300,
+  ptsize = 10,
+  cex.main = 1,
+  plotdir = NULL,
+  filenameprefix = "",
+  densitynames = c("SSB_Virgin", "R0"),
+  densityxlabs = NULL,
+  rescale = TRUE,
+  densityscalex = 1,
+  densityscaley = 1,
+  densityadjust = 1,
+  densitysymbols = TRUE,
+  densitytails = TRUE,
+  densitymiddle = FALSE,
+  densitylwd = 1,
+  fix0 = TRUE,
+  new = TRUE,
+  add = FALSE,
+  par = list(mar = c(5, 4, 1, 1) + 0.1),
+  verbose = TRUE,
+  mcmcVec = FALSE,
+  show_equilibrium = TRUE
+)
 }
 \arguments{
 \item{summaryoutput}{List created by \code{SSsummarize}}
 
-\item{subplots}{Vector of subplots to be created.}
+\item{subplots}{Vector of subplots to be created
+Numbering of subplots is as follows:
+\itemize{
+  \item 1  spawning biomass
+  \item 2  spawning biomass with uncertainty intervals
+  \item 3  biomass ratio (hopefully equal to fraction of unfished)
+  \item 4  biomass ratio with uncertainty
+  \item 5  SPR ratio
+  \item 6  SPR ratio with uncertainty
+  \item 7  F value
+  \item 8  F value with uncertainty
+  \item 9  recruits
+  \item 10  recruits with uncertainty
+  \item 11  recruit devs
+  \item 12  recruit devs with uncertainty
+  \item 13  index fits
+  \item 14  index fits on a log scale
+  \item 15  phase plot
+  \item 16  densities
+  \item 17  cumulative densities
+}
+Note that this represents a revision in the numbering for 7 and higher
+from the numbering used up to r4ss version 1.36.0 which was as follows:
+\itemize{
+  \item 18  F value with uncertainty
+  \item 7  recruits
+  \item 8  recruits with uncertainty
+  \item 9  recruit devs
+  \item 10  recruit devs with uncertainty
+  \item 11  index fits
+  \item 12  index fits on a log scale
+  \item 13  phase plot
+  \item 14  densities
+  \item 15  cumulative densities
+}}
 
 \item{plot}{Plot to active plot device?}
 
@@ -108,7 +188,7 @@ the maximum ending year of the models}
 \item{xlim}{Optional x limits}
 
 \item{ylimAdj}{Multiplier for ylim parameter. Allows additional white space
-to fit legend if necessary. Default=1.}
+to fit legend if necessary. Default=1.05.}
 
 \item{xaxs}{Choice of xaxs parameter (see ?par for more info)}
 
@@ -145,7 +225,7 @@ plots and phase plot.}
 \item{btarg}{Target biomass value at which to show a line (set to 0 to
 remove)}
 
-\item{minbthresh}{Minimum biomass threshhold at which to show a line (set to
+\item{minbthresh}{Minimum biomass threshold at which to show a line (set to
 0 to remove)}
 
 \item{pwidth}{Width of plot}
@@ -173,6 +253,9 @@ summaryoutput$quants$Label for which to make density plots}
 \item{densityxlabs}{Optional vector of x-axis labels to use in the density
 plots (must be equal in length to the printed vector of quantities that
 match the \code{densitynames} input)}
+
+\item{rescale}{TRUE/FALSE control of automatic rescaling of units into
+thousands, millions, or billions}
 
 \item{densityscalex}{Scalar for upper x-limit in density plots (values below
 1 will cut off the right tail to provide better contrast among narrower

@@ -58,6 +58,7 @@ bubble3 <- function (x,y,z,col=1,cexZ1=5,maxsize=NULL,do.sqrt=TRUE,
     # filter NA values
     x <- x[!is.na(z)]
     y <- y[!is.na(z)]
+    col <- col[!is.na(z)]
     z <- z[!is.na(z)]
 
     n <- length(x)
@@ -98,7 +99,9 @@ bubble3 <- function (x,y,z,col=1,cexZ1=5,maxsize=NULL,do.sqrt=TRUE,
     # if xlim is not specified, then set to the range, or range plus padding
     if(is.null(xlim)){
       xlim <- range(x)
-      if(length(unique(x))<minnbubble) xlim=xlim+c(-1,1)*xlimextra
+      if(length(unique(x))<minnbubble){
+        xlim <- xlim+c(-1,1)*xlimextra
+      }
     }
     #### old way using plot character to control open/closed
     ## # set plot character

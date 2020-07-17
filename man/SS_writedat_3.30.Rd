@@ -4,8 +4,13 @@
 \alias{SS_writedat_3.30}
 \title{write data file for SS version 3.30}
 \usage{
-SS_writedat_3.30(datlist, outfile, overwrite = FALSE, faster = FALSE,
-  verbose = TRUE)
+SS_writedat_3.30(
+  datlist,
+  outfile,
+  overwrite = FALSE,
+  faster = FALSE,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{datlist}{List object created by \code{\link{SS_readdat}}.}
@@ -31,5 +36,6 @@ created using \code{\link{SS_readdat}} (which would have called on
 \code{\link{SS_readforecast}}, \code{\link{SS_writeforecast}}
 }
 \author{
-Ian G. Taylor, Yukio Takeuchi, Gwladys I. Lambert
+Ian G. Taylor, Yukio Takeuchi, Gwladys I. Lambert, Kelli F. Johnson,
+Chantel R. Wetzel
 }

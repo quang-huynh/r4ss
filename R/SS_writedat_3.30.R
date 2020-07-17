@@ -11,8 +11,10 @@
 #' @param faster Speed up writing by writing length and age comps without aligning
 #' the columns (by using write.table instead of print.data.frame)
 #' @param verbose Should there be verbose output while running the file?
-#' @author Ian G. Taylor, Yukio Takeuchi, Gwladys I. Lambert
+#' @author Ian G. Taylor, Yukio Takeuchi, Gwladys I. Lambert, Kelli F. Johnson,
+#' Chantel R. Wetzel
 #' @export
+#' @importFrom stats reshape
 #' @seealso \code{\link{SS_writedat}}, \code{\link{SS_writedat_3.24}},
 #' \code{\link{SS_readdat}}, \code{\link{SS_makedatlist}},
 #' \code{\link{SS_readstarter}}, \code{\link{SS_writestarter}},
@@ -172,6 +174,7 @@ SS_writedat_3.30 <- function(datlist,
   }
 
   # write a header
+  writeComment(paste0("#V", d$ReadVersion))
   writeComment("#C data file created using the SS_writedat function in the R package r4ss")
   writeComment(paste("#C should work with SS version:", d$SSversion))
   writeComment(paste("#C file write time:", Sys.time()))
@@ -184,17 +187,38 @@ SS_writedat_3.30 <- function(datlist,
   wl.vector("months_per_seas", comment = "#_months_per_seas")
   wl("Nsubseasons")
   wl("spawn_month")
-  wl("Nsexes")
+  wl("Ngenders")
   wl("Nages")
-  wl("Nareas")
+  wl("N_areas")
   wl("Nfleets")
 
   # write table of info on each fleet
   writeComment("#_fleetinfo")
   print.df(d$fleetinfo, terminate=FALSE)
-
+  
+  # write table of info on bycatch only fleets, if exists.
+  if(!is.null(d$bycatch_fleet_info)){
+    writeComment("#Bycatch_fleet_input")
+    print.df(d$bycatch_fleet_info[,names(d$bycatch_fleet_info) != "fleetname"],
+             terminate = FALSE)
+  }
   # write table of catch
-  print.df(d$catch)
+  #year season  fleet catch catch_se
+  writeComment("#_Catch data")
+  catch.out <- d$catch
+  #catch.out <- merge(stats::reshape(d$catch, direction = "long",
+  #  idvar = c("year", "seas"),
+  #  varying = colnames(d$catch)[(!colnames(d$catch) %in% c("year", "seas"))],
+  #  timevar = "fleet",
+  #  v.names = "catch",
+  #  sep = ""),
+  #  data.frame(
+  #    "fleet" = 1:length(d$se_log_catch), 
+  #    "catch_se" = d$se_log_catch),
+  #  all.x = TRUE)
+  catch.out <- catch.out[, c("year", "seas", "fleet", "catch", "catch_se")]
+  colnames(catch.out) <- gsub("seas$", "season", colnames(catch.out))
+  print.df(catch.out)
 
   # write index info
   writeComment("#_CPUE_and_surveyabundance_observations")
@@ -204,7 +228,11 @@ SS_writedat_3.30 <- function(datlist,
   print.df(d$CPUEinfo, terminate=FALSE)
 
   writeComment("#\n#_CPUE_data")
+  if(d$N_cpue > 0) {
   print.df(d$CPUE)
+  } else {
+    writeLines(text = "-9999 1 1 1 1 # terminator", con = zz)
+  }
 
   # write discard info
   wl("N_discard_fleets")
@@ -255,36 +283,38 @@ SS_writedat_3.30 <- function(datlist,
     writeComment("#\n#_lencomp")
     if(is.null(d$lencomp) & d$use_lencomp==1){
       # empty data.frame with correct number of columns needed for terminator row
-      d$lencomp <- data.frame(matrix(vector(), 0, 6 + d$N_lbins * d$Nsexes))
+      d$lencomp <- data.frame(matrix(vector(), 0, 6 + d$N_lbins * abs(d$Ngenders)))
     }
     print.df(d$lencomp)
   }
   # age bins
   wl("N_agebins")
+
+  # additional age comp info only needed if N_agebins > 0
   if (d$N_agebins > 0) {
     writeComment("#\n#_agebin_vector")
     wl.vector("agebin_vector")
+
+    # ageing error
+    writeComment("#\n#_ageing_error")
+    wl("N_ageerror_definitions")
+    print.df(d$ageerror, terminate=FALSE)
+
+    # specification of age comps
+    writeComment("#\n#_age_info")
+    print.df("age_info", terminate=FALSE)
+
+    wl("Lbin_method", comment = "#_Lbin_method: 1=poplenbins; 2=datalenbins; 3=lengths")
+    wl("max_combined_age", comment = "#_combine males into females at or below this bin number")
+
+    # age comps
+    if (is.null(d$agecomp)) {
+      # empty data.frame with correct number of columns needed for terminator row
+      d$agecomp <- data.frame(matrix(vector(), 0, 9 + d$N_agebins * abs(d$Ngenders)))
+    }
+    print.df(d$agecomp)
   }
-
-  # ageing error
-  writeComment("#\n#_ageing_error")
-  wl("N_ageerror_definitions")
-  print.df(d$ageerror, terminate=FALSE)
-
-  # specification of age comps
-  writeComment("#\n#_age_info")
-  print.df("age_info", terminate=FALSE)
-
-  wl("Lbin_method", comment = "#_Lbin_method: 1=poplenbins; 2=datalenbins; 3=lengths")
-  wl("max_combined_age", comment = "#_combine males into females at or below this bin number")
-
-  # age comps
-  if(is.null(d$agecomp)){
-    # empty data.frame with correct number of columns needed for terminator row
-    d$agecomp <- data.frame(matrix(vector(), 0, 9 + d$N_agebins * d$Nsexes))
-  }
-  print.df(d$agecomp)
-
+  
   writeComment("#\n#_MeanSize_at_Age_obs")
   wl("use_MeanSize_at_Age_obs")
   print.df(d$MeanSize_at_Age_obs)
@@ -322,8 +352,8 @@ SS_writedat_3.30 <- function(datlist,
     wl("N_recap_events")
     wl("mixing_latency_period")
     wl("max_periods")
-    print.df(d$tag_releases)
-    print.df(d$tag_recaps)
+    print.df(d$tag_releases, terminate = FALSE)
+    print.df(d$tag_recaps, terminate = FALSE)
   }
 
   # write morph composition data

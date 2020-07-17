@@ -15,7 +15,8 @@
 #' created by Stock Synthesis. Allows the choice of either expected values
 #' (section=2) or bootstrap data (section=3+). Leaving default of section=NULL
 #' will read input data, (equivalent to section=1).
-#' @author Ian G. Taylor, Yukio Takeuchi, Z. Teresa A'mar
+#' @author Ian G. Taylor, Yukio Takeuchi, Z. Teresa A'mar, Kelli F. Johnson,
+#' Chantel R. Wetzel
 #' @export
 #' @seealso \code{\link{SS_readdat}}, \code{\link{SS_readdat_3.30}}
 #' \code{\link{SS_readstarter}}, \code{\link{SS_readforecast}},
@@ -308,6 +309,9 @@ SS_readdat_3.24 <- function(file,verbose=TRUE,echoall=FALSE,section=NULL){
   datlist$N_agecomp <- N_agecomp <- allnums[i]; i <- i+1
   if(verbose) cat("N_agecomp =",N_agecomp,"\n")
 
+  # note that Lbin_method below is related to the interpretation of
+  # conditional age-at-length data and differs from lbin_method for the length
+  # data read above
   datlist$Lbin_method <- allnums[i]; i <- i+1
   datlist$max_combined_lbin <- allnums[i]; i <- i+1
 
@@ -472,6 +476,48 @@ SS_readdat_3.24 <- function(file,verbose=TRUE,echoall=FALSE,section=NULL){
     if(verbose) cat("read of data file complete (final value = 999)\n")
   }else{
     cat("Error: final value is", allnums[i]," but should be 999\n")
+  }
+  
+  # get fleet info
+  finfo<-rbind(datlist$fleetinfo1,c(rep(1,datlist$Nfleet),rep(3,datlist$Nsurveys)))
+  finfo<-rbind(finfo,c(datlist$units_of_catch,rep(0,datlist$Nsurveys)))
+  rownames(finfo)[3]<-"type"
+  rownames(finfo)[4]<-"units"
+  finfo<-finfo[,1:(length(finfo)-1)]
+  finfo<-as.data.frame(t(finfo))
+  datlist$fleetinfo<-finfo
+  datlist$NCPUEObs<-array(data=0,dim=datlist$Nfleet+datlist$Nsurveys)
+  for(j in 1:nrow(datlist$CPUE))
+  {
+    if(datlist$CPUE[j,]$index>0)datlist$NCPUEObs[datlist$CPUE[j,]$index]<-datlist$NCPUEObs[datlist$CPUE[j,]$index]+1
+  }
+  # fix some things
+  if(!is.null(datlist$lbin_method))
+  {
+    if(datlist$lbin_method==1) # same as data bins
+    {
+      datlist$N_lbinspop<-datlist$N_lbins
+      datlist$lbin_vector_pop<-datlist$lbin_vector
+    }
+    if(datlist$lbin_method==2) # defined wid, min, max
+    {
+      if(!is.null(datlist$binwidth)&&!is.null(datlist$minimum_size)&&!is.null(datlist$maximum_size))
+      {
+        datlist$N_lbinspop<-(datlist$maximum_size-datlist$minimum_size)/datlist$binwidth+1
+        datlist$lbin_vector_pop<-vector()
+        for(j in 0:datlist$N_lbinspop)
+        {
+          datlist$lbin_vector_pop<-c(datlist$lbin_vector_pop,datlist$minimum_size+(j*datlist$binwidth))
+        }
+      }
+    }
+    if(datlist$lbin_method==3) # vector
+    {
+      if(!is.null(datlist$lbin_vector_pop))
+      {
+        datlist$N_lbinspop<-length(datlist$lbin_vector_pop)
+      }
+    }
   }
 
   # return the result

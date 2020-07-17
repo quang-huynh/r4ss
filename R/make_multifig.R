@@ -39,18 +39,23 @@
 #' @param minnbubble number of unique x values before adding buffer. see
 #' ?bubble3 for more info.
 #' @param allopen should all bubbles be open? see ?bubble3 for more info.
-#' @param horiz_lab axis labels set horizontal all the time (TRUE), never
-#' (FALSE) or only when relatively short ("default")
 #' @param xbuffer extra space around points on the left and right as fraction
 #' of total width of plot
 #' @param ybuffer extra space around points on the bottom and top as fraction
 #' of total height of plot
 #' @param yupper upper limit on ymax (applied before addition of ybuffer)
 #' @param ymin0 fix minimum y-value at 0?
-#' @param axis1 position of bottom axis values
-#' @param axis2 position of left size axis values
+#' @param xlas label style (las) input for x-axis. Default 0 has horizontal
+#' labels, input 2 would provide vertical lables.
+#' @param ylas label style (las) input for y-axis. Default NULL has horizontal
+#' labels when all labels have fewer than 6 characters and vertical otherwise.
+#' Input 0 would force vertical labels, and 1 would force horizontal.
+#' @param axis1 optional position of bottom axis values
+#' @param axis2 optional position of left size axis values
+#' @param axis1labs optional vector of labels for axis1 (either NULL or needs to
+#' match length of axis1)
 #' @param linepos should lines be added on top of points (linepos=1) or behind
-#' (linepos=2)?
+#' (linepos=2)? A value of linepos = 0 will result in no line.
 #' @param type type of line/points used for observed values (see 'type' in
 #' ?plot for details) on top of a grey polygon. Default is "o" for overplotting
 #' points on lines.
@@ -99,7 +104,7 @@
 #' passed to this function via the ... argument.
 #' @param multifig_oma vector of outer margins. Can be input to SS_plots and will be
 #' passed to this function via the ... argument.
-#' @param \dots additional arguments (NOT YET IMPLEMENTED).
+#' @param \dots additional arguments passed to \code{par}.
 #' @author Ian Taylor
 #' @export
 #' @seealso \code{\link{SS_plots}},\code{\link{SSplotComps}}
@@ -113,9 +118,11 @@ make_multifig <-
            maxrows=6, maxcols=6, rows=1, cols=1, fixdims=TRUE, main="",cex.main=1,
            xlab="",ylab="",size=1,cexZ1=1.5,bublegend=TRUE,
            maxsize=NULL,do.sqrt=TRUE,minnbubble=8,allopen=TRUE,
-           horiz_lab="default",xbuffer=c(.1,.1),ybuffer=c(0,0.15),
+           xbuffer=c(.1,.1),ybuffer=c(0,0.15),
            yupper=NULL, ymin0=TRUE,
-           axis1=NULL,axis2=NULL,linepos=1,type="o",
+           xlas = 0, ylas = NULL,
+           axis1 = NULL, axis2 = NULL, axis1labs = NULL,
+           linepos=1,type="o",
            polygons=TRUE,
            bars=FALSE,barwidth="default",ptscex=1,ptscol=1,ptscol2=1,
            colvec=c(rgb(1,0,0,.7),rgb(0,0,1,.7),rgb(.1,.1,.1,.7)),
@@ -127,7 +134,7 @@ make_multifig <-
            sampsizeline=FALSE,effNline=FALSE,sampsizemean=NULL,effNmean=NULL,
            ipage=0,scalebins=FALSE,sexvec=NULL,
            multifig_colpolygon=c("grey60","grey80","grey70"),
-           multifig_oma=c(5,5,5,2)+.1,...)
+           multifig_oma = NULL,...)
 {
   # switch to determine whether to show males below 0 line in same plot
   twosex <- TRUE
@@ -143,7 +150,6 @@ make_multifig <-
     male_mult <- -1
   }
 
-#print(paste("twosex: ",twosex)  )
   # define dimensions
   yrvec <- sort(unique(yr))
   npanels <- length(yrvec)
@@ -157,6 +163,25 @@ make_multifig <-
     ncols <- maxcols
   }
 
+  # deal with bin scaling
+  # all unique bins included in the data
+  # (tail compression might cause this to differ by year and be unreliable)
+  allbins.obs <- sort(unique(ptsx))
+  if(scalebins){ # if bin scaling turned on
+    if(diff(range(allbins.obs)) > 0 &&     # & if the range of bins is non-zero
+       length(allbins.obs) > 2 &&          # & if there are more than 2 bins
+       length(unique(diff(allbins.obs)))){ # & if there are different bin widths
+      diffs <- diff(allbins.obs)
+      # repeat final width to treating plus group as same width as previous bin
+      diffs <- c(diffs, diffs[length(diffs)]) 
+      bin.width.table <- data.frame(bin=allbins.obs,
+                                    width=diffs)
+    }else{
+      scalebins <- FALSE
+      warning("Setting scalebins=FALSE. Bins are equal length or too few.")
+    }
+  }
+  
   npages <- ceiling(npanels/nrows/ncols) # how many pages of plots
   # doSD is TRUE/FALSE switch for whether to add error bars on points
   doSD <- length(ptsSD)==length(ptsx) & max(ptsSD) > 0
@@ -203,18 +228,29 @@ make_multifig <-
     yrange_big <- range(-yrange,yrange)+c(-1,1)*ybuffer*diff(yrange)
   }
 
-  # get axis labels
+  # get axis label details
   yaxs_lab <- pretty(yrange)
-  maxchar <- max(nchar(yaxs_lab))
-  if(horiz_lab=="default"){
-    horiz_lab <- maxchar<6 # should y-axis label be horizontal?
+  maxchar_yaxs <- max(nchar(yaxs_lab))
+  if(is.null(ylas)){
+    if(maxchar_yaxs < 6){ # should y-axis label be horizontal?
+      ylas <- 1
+    }else{
+      ylas <- 0
+    }
   }
+  # get x-axis values
   if(is.null(axis1)){
     axis1 <- pretty(xrange)
   }
+  # get x-axis labels
+  if(is.null(axis1labs)){
+    axis1labs <- axis1
+  }
+  # get y-axis values and labels
   if(is.null(axis2)){
     axis2 <- pretty(yrange)
   }
+  # get legend info
   if(length(sampsize)==1){
     sampsize <- 0
   }
@@ -225,8 +261,15 @@ make_multifig <-
   # create multifigure layout, set inner margins all to 0 and add outer margins
   # old graphics parameter settings
   par_old <- par()
-  # new settings
-  par(mfcol=c(nrows,ncols),mar=rep(0,4),oma=multifig_oma)
+  # new parameter settings, including upper outer margin dependent title != ""
+  if(is.null(multifig_oma)){
+    if(main == ""){
+      multifig_oma <- c(5,5,1,1)+.1
+    }else{
+      multifig_oma <- c(5,5,5,1)+.1
+    }
+  }
+  par(mfcol = c(nrows, ncols), mar = rep(0, 4), oma = multifig_oma, ...)
 
   panelrange <- 1:npanels
   if(npages > 1 & ipage!=0){
@@ -279,35 +322,43 @@ make_multifig <-
     z_i2 <- size[yr==yr_i & sexvec==2]
 
     # optional rescaling of bins for line plots
-    #!! (not yet applied to males in 2-sex plots)
     scaled <- FALSE
     if(scalebins){
-      bins <- sort(unique(ptsx_i1))
-      binwidths <- diff(bins)
-      if(diff(range(binwidths))>0){
-        warning("NOTE: scaling comps based on variable bin widths\n",
-                "hasn't yet been adapted to 2-sex plots")
-        if(FALSE){
-          binwidths <- c(binwidths,tail(binwidths,1))
-          allbinwidths <- apply(as.matrix(ptsx_i1),1,
-                                function(x){(binwidths)[bins==x]})
-          ptsy_i1   <- ptsy_i1/allbinwidths
-          linesy_i1 <- linesy_i1/allbinwidths
-          scaled <- TRUE
+      # function to lookup width associated with each bin in the table crated above
+      # IGT 2019-05-02: surely there is a more efficient way to do this
+      getwidths <- function(ptsx){
+        if(length(ptsx) > 0){
+          widths <- rep(NA, length(ptsx))
+          for(ibin in 1:length(ptsx)){
+            widths[ibin] <- bin.width.table$width[bin.width.table$bin == ptsx[ibin]]
+          }
+        }else{
+          widths <- NULL
         }
+        return(widths)
       }
-      if(scaled){
-        # change y-axis label if comps are scaled
-        anyscaled <- TRUE
-        if(ylab=="Proportion"){
-          ylab <- "Proportion / bin width"
-        }
+      widths_i0 <- getwidths(ptsx_i0)
+      widths_i1 <- getwidths(ptsx_i1)
+      widths_i2 <- getwidths(ptsx_i2)
+      ptsy_i0   <- ptsy_i0/widths_i0
+      ptsy_i1   <- ptsy_i1/widths_i1
+      ptsy_i2   <- ptsy_i2/widths_i2
+      linesy_i0 <- linesy_i0/widths_i0
+      linesy_i1 <- linesy_i1/widths_i1
+      linesy_i2 <- linesy_i2/widths_i2
+      scaled <- TRUE
+    }
+    if(scaled){
+      # change y-axis label if comps are scaled
+      anyscaled <- TRUE
+      if(ylab=="Proportion"){
+        ylab <- "Proportion / bin width"
       }
     }
 
     # make plot
     plot(0,type="n", axes=FALSE, xlab="",ylab="", xlim=xrange_big,
-         ylim=yrange_big, xaxs="i", yaxs=ifelse(bars,"i","r"))
+         ylim=yrange_big, xaxs="i", yaxs=ifelse(bars,"i","r"), ...)
     abline(h=0,col="grey") # grey line at 0
     if(linepos==2){ # add lines behind points
       lines(linesx_i0, linesy_i0, col=linescol[1], lwd=lwd, lty=lty)
@@ -420,8 +471,8 @@ make_multifig <-
         }
         # make arrows showing uncertainty for males
         if(length(ptsx_i2)>0){
-          arrows(x0=ptsx_i2,y0=-qnorm(p=0.05,mean=ptsy_i2,sd=ptsSD_i2),
-                 x1=ptsx_i2,y1=-qnorm(p=0.95,mean=ptsy_i2,sd=ptsSD_i2),
+          arrows(x0=ptsx_i2,y0=qnorm(p=0.05,mean=ptsy_i2,sd=ptsSD_i2),
+                 x1=ptsx_i2,y1=qnorm(p=0.95,mean=ptsy_i2,sd=ptsSD_i2),
                  length=0.01, angle=90, code=3, col=ptscol)
         }
         options(warn=old_warn)  #returning to old value
@@ -537,16 +588,18 @@ make_multifig <-
     # add axes in left and lower outer margins
     mfg <- par("mfg")
     # axis on bottom panels and final panel
-    if(mfg[1]==mfg[3] | ipanel==npanels) axis(side=1,at=axis1)
+    if(mfg[1]==mfg[3] | ipanel==npanels){
+      axis(side = 1, at = axis1, labels = axis1labs, las = xlas)
+    }
     if(mfg[2]==1){
       # axis on left side panels
-      axis(side=2,at=axis2,las=horiz_lab)
+      axis(side = 2, at = axis2, las = ylas)
       if(twosex){
         # axis for negative values on left side panels
         axis(side=2, at=-axis2[axis2>0], labels=format(axis2[axis2>0]),
-             las=horiz_lab)
+             las = ylas)
         ## # axis for negative values on left side panels
-        ## axis(side=2,at=-axis2,las=horiz_lab)
+        ## axis(side=2,at=-axis2,las = ylas)
       }
     }
     box() # add box around panel
@@ -564,7 +617,7 @@ make_multifig <-
       if(npanels>1){
         title(main=main, line=c(2,0,3,3), outer=TRUE, cex.main=cex.main*fixcex)
         title(xlab=xlab, outer=TRUE, cex.lab=fixcex)
-        title(ylab=ylab, line=ifelse(horiz_lab,max(3,2+.4*maxchar),3.5),
+        title(ylab=ylab, line=ifelse(ylas %in% 1:2, max(3,2+.4*maxchar_yaxs), 3.5),
               outer=TRUE, cex.lab=fixcex)
       }else{
         title(main=main, xlab=xlab, ylab=ylab, outer=TRUE, cex.main=cex.main)

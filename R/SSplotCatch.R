@@ -52,13 +52,13 @@
 #' @export
 #' @seealso \code{\link{SS_plots}}, \code{\link{SS_output}}
 SSplotCatch <-
-  function(replist,subplots=1:15,add=FALSE,areas=1,
+  function(replist,subplots=1:16,add=FALSE,areas=1,
            plot=TRUE,print=FALSE,
            type="l",
            fleetlty=1, fleetpch=1,
            fleetcols="default", fleetnames="default",
            lwd=3, areacols="default", areanames="default",
-           minyr=NULL,maxyr=NULL,
+           minyr=-Inf, maxyr=Inf,
            annualcatch=TRUE,
            forecastplot=FALSE,
            plotdir="default",showlegend=TRUE,
@@ -83,9 +83,6 @@ SSplotCatch <-
            cex.main=1, # note: no plot titles yet implemented
            verbose=TRUE)
 {
-  # plot catch-related time-series for Stock Synthesis
-  # note from Ian Taylor to himself: "make minyr and maxyr connect to something!"
-
   # note: stacked plots depend on multiple fleets
   subplot_names <- c("1: landings",
                      "2: landings stacked",
@@ -103,7 +100,9 @@ SSplotCatch <-
                      "12: total catch (if discards present) aggregated across seasons",
                      "13: total catch (if discards present) aggregated across seasons stacked",
                      "14: discards aggregated across seasons",
-                     "15: discards aggregated across seasons stacked")
+                     "15: discards aggregated across seasons stacked",
+                     # note: subplot 16 
+                     "16: landings + dead discards")
 
   # subfunction to write png files
   pngfun <- function(file, caption=NA){
@@ -160,12 +159,14 @@ SSplotCatch <-
   }
 
 
-  # time series (but no forecast) quantities used for multiple plots
-  if(nseasons>1) timeseries$Yr <- timeseries$Yr + replist$seasfracs
-  ts <- timeseries[timeseries$Yr <= endyr+1,]
-  #ts.fore <- timeseries[timeseries$Yr >= endyr+1,]
-  if(forecastplot){
-    ts <- timeseries
+  # time series quantities used for multiple plots
+  if(nseasons>1){
+    timeseries$Yr <- timeseries$Yr + replist$seasfracs
+  }
+  ts <- timeseries[timeseries$Yr >= minyr & timeseries$Yr <= maxyr, ]
+  # filter out forecast years if requested
+  if(!forecastplot){
+    ts <- ts[ts$Yr <= endyr+1,]
   }
 
   # spread equilibrium catch over all seasons for 3.24 and earlier models
@@ -209,12 +210,14 @@ SSplotCatch <-
   }
   if(catchasnumbers){
     retmat <- as.matrix(ts[goodrows, substr(names(ts),1,nchar("retain(N)"))=="retain(N)"])
+    deadmat <- as.matrix(ts[goodrows, substr(names(ts),1,nchar("dead(N)"))=="dead(N)"])
     totcatchmat <- as.matrix(ts[goodrows, substr(names(ts),1,nchar(stringN))==stringN])
     if(ncol(totcatchmat)==1){
       colnames(totcatchmat) <- grep(stringN, names(ts), fixed=TRUE, value=TRUE)
     }
   }else{
     retmat <- as.matrix(ts[goodrows, substr(names(ts),1,nchar("retain(B)"))=="retain(B)"])
+    deadmat <- as.matrix(ts[goodrows, substr(names(ts),1,nchar("dead(B)"))=="dead(B)"])
     totcatchmat <- as.matrix(ts[goodrows, substr(names(ts),1,nchar(stringB))==stringB])
     if(ncol(totcatchmat)==1){
       colnames(totcatchmat) <- grep(stringB, names(ts), fixed=TRUE, value=TRUE)
@@ -227,12 +230,16 @@ SSplotCatch <-
   # add total across areas
   if(nareas > 1){
     for(iarea in 2:nareas){
-      arearows <- ts$Area==iarea & ts$Era %in% c("INIT","TIME")
+      arearows <- ts$Area==iarea & ts$Era %in% c("INIT", "TIME")
+      if(forecastplot){
+        arearows <- ts$Area==iarea & ts$Era %in% c("INIT", "TIME", "FORE")
+      }
       if(catchasnumbers){
         retmat <- retmat + as.matrix(ts[arearows, substr(names(ts),1,nchar("retain(N)"))=="retain(N)"])
         totcatchmat <- totcatchmat + as.matrix(ts[arearows, substr(names(ts),1,nchar(stringN))==stringN])
       }else{
         retmat <- retmat + as.matrix(ts[arearows, substr(names(ts),1,nchar("retain(B)"))=="retain(B)"])
+        deadmat <- deadmat + as.matrix(ts[arearows, substr(names(ts),1,nchar("dead(B)"))=="dead(B)"])
         totcatchmat <- totcatchmat + as.matrix(ts[arearows, substr(names(ts),1,nchar(stringB))==stringB])
       }
       totobscatchmat <- totobscatchmat + as.matrix(ts[arearows, substr(names(ts),1,nchar("obs_cat"))=="obs_cat"])
@@ -314,7 +321,8 @@ SSplotCatch <-
     abline(h=0,col="grey")
     #abline(h=1,col="grey")
     for(f in 1:nfleets_with_catch){
-      if(max(ymat[,f],na.rm=TRUE)>0){
+      # if there are any non-NA values and the max is > 0
+      if(any(!is.na(ymat[,f])) && max(ymat[,f],na.rm=TRUE)>0){
         lines(x, ymat[,f], type=type, col=fleetcols[f],
               lty=fleetlty[f], lwd=lwd, pch=fleetpch[f])
       }
@@ -344,7 +352,7 @@ SSplotCatch <-
     return(TRUE)
   } # end stackfunc
 
-  barfunc <- function(ymat,ylab,ymax=NULL,x=catchyrs){
+  barfunc <- function(ymat,ylab,ymax=NULL,x=catchyrs, add=FALSE){
     # adding labels to barplot as suggested by Mike Prager on R email list:
     #    http://tolstoy.newcastle.edu.au/R/e2/help/07/03/13013.html
     if(is.null(ymax)){
@@ -402,8 +410,12 @@ SSplotCatch <-
   
   makeplots <- function(subplot){
     a <- FALSE
-    if(subplot==1) a <- linefunc(ymat=retmat, ymax=ymax, ylab=labels[3], addtotal=TRUE)
-    if(subplot==2) a <- stackfunc(ymat=retmat, ymax=ymax, ylab=labels[3])
+    if(subplot==1){
+      a <- linefunc(ymat=retmat, ymax=ymax, ylab=labels[3], addtotal=TRUE)
+    }
+    if(subplot==2){
+      a <- stackfunc(ymat=retmat, ymax=ymax, ylab=labels[3], add=add)
+    }
     # if observed catch differs from estimated by more than 0.1%, then make plot to compare
     if(subplot==3 &
        diff(range(retmat-totobscatchmat, na.rm=TRUE))/
@@ -425,7 +437,7 @@ SSplotCatch <-
         a <- linefunc(ymat=totcatchmat, ymax=ymax, ylab=labels[4], addtotal=TRUE)
       }
       if(subplot==5 & nfleets_with_catch>1){
-        a <- stackfunc(ymat=totcatchmat, ymax=ymax, ylab=labels[4])
+        a <- stackfunc(ymat=totcatchmat, ymax=ymax, ylab=labels[4], add=add)
       }
       if(subplot==6){
         a <- linefunc(ymat=discmat, ymax=ymax, ylab=labels[5], addtotal=TRUE)
@@ -467,6 +479,9 @@ SSplotCatch <-
                          ylab=paste(labels[5],labels[10]), x=catchyrs2)
         }
       }
+    }
+    if(max(discmat,na.rm=TRUE) > 0 & subplot == 16){
+      a <- stackfunc(ymat=deadmat, ymax=ymax, ylab="", add=add)
     }
     if(verbose & a) cat("  finished catch subplot",subplot_names[subplot],"\n")
     return(a)

@@ -4,8 +4,7 @@
 \alias{SS_readdat_3.24}
 \title{read data file from SS version 3.24}
 \usage{
-SS_readdat_3.24(file, verbose = TRUE, echoall = FALSE,
-  section = NULL)
+SS_readdat_3.24(file, verbose = TRUE, echoall = FALSE, section = NULL)
 }
 \arguments{
 \item{file}{Filename either with full path or relative to working directory.}
@@ -34,5 +33,6 @@ for a wrapper function that calls either SS_readdat_3.24 or SS_readdat_3.30
 \code{\link{SS_writeforecast}}, \code{\link{SS_writedat}}
 }
 \author{
-Ian G. Taylor, Yukio Takeuchi, Z. Teresa A'mar
+Ian G. Taylor, Yukio Takeuchi, Z. Teresa A'mar, Kelli F. Johnson,
+Chantel R. Wetzel
 }
